@@ -5,6 +5,8 @@ import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
 import { getLocations } from "@/lib/api";
 import type { DropLocation } from "@/lib/types";
+import Map, { NavigationControl, GeolocateControl } from "react-map-gl/maplibre";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 export default function LocationsPage() {
   const [locations, setLocations] = useState<DropLocation[]>([]);
@@ -97,54 +99,23 @@ export default function LocationsPage() {
           </div>
         </aside>
 
-        {/* Simulated map */}
+        {/* Real Map */}
         <section className="flex-1 relative bg-surface-variant overflow-hidden min-h-[400px]">
-          <div
-            className="absolute inset-0 bg-[#e0e3e1]"
-            style={{
-              backgroundImage:
-                "radial-gradient(#006d37 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
+          <Map
+            initialViewState={{
+              longitude: 106.8229, // Jakarta center
+              latitude: -6.1944,
+              zoom: 12,
             }}
-          />
-          {/* Pins */}
-          {locations.map((loc) => {
-            const active = loc.id === activeId;
-            return (
-              <button
-                key={loc.id}
-                onClick={() => setActiveId(loc.id)}
-                className="absolute -translate-x-1/2 -translate-y-1/2 group"
-                style={{ top: `${loc.mapY}%`, left: `${loc.mapX}%` }}
-              >
-                <span
-                  className={`flex items-center justify-center rounded-full shadow-2xl border-4 border-white transition-transform group-hover:scale-110 ${
-                    !loc.isOpen
-                      ? "bg-error text-white w-10 h-10"
-                      : active
-                        ? "bg-primary text-white w-12 h-12"
-                        : "bg-primary-container text-on-primary-container w-10 h-10"
-                  }`}
-                >
-                  <Icon
-                    name={loc.isOpen ? "location_on" : "location_off"}
-                    fill
-                    className={active ? "text-[28px]" : "text-[18px]"}
-                  />
-                </span>
-                {active && loc.isOpen && (
-                  <span className="absolute left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap bg-white/95 backdrop-blur px-3 py-1 rounded-lg shadow-xl border border-primary/10">
-                    <span className="text-label-sm font-bold text-primary block">
-                      {loc.name}
-                    </span>
-                  </span>
-                )}
-              </button>
-            );
-          })}
+            mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+            style={{ width: "100%", height: "100%" }}
+          >
+            <NavigationControl position="bottom-right" />
+            <GeolocateControl position="bottom-right" />
+          </Map>
 
           {/* Info card */}
-          <div className="hidden md:block absolute top-10 left-10 p-6 glass-card rounded-2xl shadow-2xl max-w-sm">
+          <div className="hidden md:block absolute top-10 left-10 p-6 glass-card rounded-2xl shadow-2xl max-w-sm pointer-events-none">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Icon name="analytics" className="text-primary" />
@@ -171,21 +142,6 @@ export default function LocationsPage() {
                 </span>
               </div>
             </div>
-          </div>
-
-          {/* Map controls */}
-          <div className="absolute bottom-8 right-8 flex flex-col gap-2">
-            {["add", "remove"].map((c) => (
-              <button
-                key={c}
-                className="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all"
-              >
-                <Icon name={c} />
-              </button>
-            ))}
-            <button className="w-12 h-12 bg-primary text-white rounded-xl shadow-lg flex items-center justify-center mt-2">
-              <Icon name="my_location" />
-            </button>
           </div>
         </section>
       </div>
