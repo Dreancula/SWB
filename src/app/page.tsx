@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { useAuth } from "@/context/AuthContext";
+import Image from "next/image";
 
 export default function LandingLoginPage() {
   const router = useRouter();
@@ -180,12 +181,26 @@ export default function LandingLoginPage() {
 
               <div className="grid grid-cols-2 gap-stack-md">
                 <button className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors">
-                  <Icon name="g_translate" className="text-secondary" />
-                  <span className="text-label-sm font-label-sm">Google</span>
+                  <span className="text-label-sm font-label-sm flex items-center gap-2">
+                    <Image
+                      src={"/images/google-icon.png"}
+                      alt="Google"
+                      width={24}
+                      height={24}
+                    />
+                    Google
+                  </span>
                 </button>
                 <button className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors">
-                  <Icon name="public" className="text-secondary" />
-                  <span className="text-label-sm font-label-sm">Facebook</span>
+                  <span className="text-label-sm font-label-sm flex items-center gap-2">
+                    <Image
+                      src={"/images/facebook-icon.png"}
+                      alt="Facebook"
+                      width={24}
+                      height={24}
+                    />
+                    Facebook
+                  </span>
                 </button>
               </div>
 
@@ -202,7 +217,7 @@ export default function LandingLoginPage() {
 
       <footer className="mt-auto py-8 border-t border-surface-variant text-center">
         <p className="text-label-sm font-label-sm text-outline">
-          © 2024 Smart Eco Bank. Mengubah limbah menjadi masa depan yang
+          © 2026 Smart Eco Bank. Mengubah limbah menjadi masa depan yang
           berkelanjutan.
         </p>
       </footer>
