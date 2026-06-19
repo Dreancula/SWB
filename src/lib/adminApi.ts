@@ -1,0 +1,427 @@
+import { BASE_URL, setAuthToken, setAuthRole, authHeaders } from "./api";
+
+const API_URL = `${BASE_URL}/api`;
+import type {
+  AdminVerification,
+  AdminCategory,
+  AdminProduct,
+  AdminProfile,
+  AdminChatSession,
+  AdminRewardOrder,
+  RewardOrderStatus,
+  ActivityLog,
+} from "./adminTypes";
+import type { ChatMessage } from "./types";
+
+export const LOW_STOCK_THRESHOLD = 15;
+
+export function isLowStock(p: AdminProduct): boolean {
+  return p.stock <= LOW_STOCK_THRESHOLD;
+}
+
+// ---------------------------------------------------------------------------
+// Auth (same /login endpoint as user)
+// ---------------------------------------------------------------------------
+
+export async function adminLogin(
+  email: string,
+  password: string,
+): Promise<boolean> {
+  const form = new FormData();
+  form.append("email", email);
+  form.append("password", password);
+  try {
+    const res = await fetch(`${API_URL}/login`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      body: form,
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const token = (data.token ?? data.data?.token) as string;
+    setAuthToken(token);
+    setAuthRole("admin");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mappers
+// ---------------------------------------------------------------------------
+
+function mapVerification(v: Record<string, unknown>): AdminVerification {
+  const user     = v.user      as Record<string, unknown> | undefined;
+  const category = v.category  as Record<string, unknown> | undefined;
+  const location = v.location  as Record<string, unknown> | undefined;
+  const aiResult = v.ai_result as Record<string, unknown> | undefined;
+
+  return {
+    id:              String(v.id ?? ""),
+    userId:          String(v.user_id ?? user?.id ?? ""),
+    userName:        String(user?.full_name ?? user?.name ?? ""),
+    userEmail:       String(user?.email ?? ""),
+    userPhone:       String(user?.phone ?? ""),
+    categoryId:      Number(v.category_id ?? category?.id ?? 0),
+    categoryName:    String(category?.category_name ?? v.category ?? ""),
+    locationName:    String(location?.nama_pengepul ?? ""),
+    locationAddress: String(location?.alamat ?? ""),
+    photoPath:       v.photo_path ? String(v.photo_path) : null,
+    weightGram:      Number(v.weight_gram ?? 0),
+    earnedPoints:    Number(v.earned_points ?? 0),
+    aiCategory:      String(aiResult?.detected_category ?? category?.category_name ?? ""),
+    aiMessage:       String(aiResult?.message ?? ""),
+    status:          (v.status ?? "pending") as AdminVerification["status"],
+    submittedAt:     String(v.created_at ?? v.submitted_at ?? ""),
+    confidence:      Number(aiResult?.confidence_score ?? v.confidence ?? 0),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Verification queue
+// ---------------------------------------------------------------------------
+
+export async function getAdminVerifications(): Promise<{
+  items: AdminVerification[];
+  categories: AdminCategory[];
+}> {
+  const res = await fetch(`${API_URL}/admin/verification`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Gagal memuat antrian verifikasi");
+  const data = await res.json();
+  const payload = (data.data ?? data) as Record<string, unknown>;
+
+  const txList: Record<string, unknown>[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.transactions)
+      ? (payload.transactions as Record<string, unknown>[])
+      : [];
+
+  const catList: Record<string, unknown>[] = Array.isArray(payload.categories)
+    ? (payload.categories as Record<string, unknown>[])
+    : [];
+
+  return {
+    items: txList.map(mapVerification),
+    categories: catList.map((c) => ({
+      id: Number(c.id),
+      name: String(c.category_name ?? c.name ?? ""),
+    })),
+  };
+}
+
+export interface ApproveResult {
+  token: string;
+  points: number;
+  transactionId: number;
+}
+
+export async function approveVerification(
+  id: string,
+  payload: { productName: string; categoryId: number | string; weightGram: number },
+): Promise<ApproveResult> {
+  const res = await fetch(`${API_URL}/admin/verification/${id}/approve`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      product_name: payload.productName,
+      category_id: Number(payload.categoryId),
+      weight_gram: payload.weightGram,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal menyetujui verifikasi");
+  }
+  const data = await res.json();
+  const d = (data.data ?? data) as Record<string, unknown>;
+  return {
+    token: String(d.token ?? ""),
+    points: Number(d.points ?? 0),
+    transactionId: Number(d.transaction_id ?? d.transactionId ?? 0),
+  };
+}
+
+export async function rejectVerification(
+  id: string,
+  reason: string,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/verification/${id}/reject`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ rejection_reason: reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal menolak verifikasi");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard, Users, Reports
+// ---------------------------------------------------------------------------
+
+export async function getAdminDashboard(): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API_URL}/admin/dashboard`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Gagal memuat dashboard admin");
+  return res.json();
+}
+
+export async function getAdminUsers(): Promise<Record<string, unknown>[]> {
+  const res = await fetch(`${API_URL}/admin/users`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Gagal memuat daftar user");
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.data ?? []);
+}
+
+export async function getAdminReports(): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API_URL}/admin/reports`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Gagal memuat laporan");
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Admin QR scan (direct deposit)
+// ---------------------------------------------------------------------------
+
+export async function adminScanQr(payload: {
+  uniqueCode: string;
+  weightGram: number;
+  locationId: number | string;
+  categoryId: number | string;
+}): Promise<void> {
+  const form = new FormData();
+  form.append("unique_code", payload.uniqueCode);
+  form.append("weight_gram", String(payload.weightGram));
+  form.append("location_id", String(payload.locationId));
+  form.append("category_id", String(payload.categoryId));
+  const res = await fetch(`${API_URL}/admin/scan-qr`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) throw new Error("Admin scan QR gagal");
+}
+
+// ---------------------------------------------------------------------------
+// Profile (reuses /user endpoint)
+// ---------------------------------------------------------------------------
+
+export async function getAdminProfile(): Promise<AdminProfile> {
+  const res = await fetch(`${API_URL}/user`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Gagal memuat profil admin");
+  const raw = await res.json();
+  const d = (raw.data as Record<string, unknown>) ?? raw;
+  return {
+    name: (d.full_name ?? d.name ?? d.fullName ?? "") as string,
+    email: (d.email ?? "") as string,
+    role: (d.role ?? "Administrator") as string,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Products (stock management)
+// ---------------------------------------------------------------------------
+
+function mapProduct(p: Record<string, unknown>): AdminProduct {
+  return {
+    id: String(p.id ?? ""),
+    name: String(p.product_name ?? p.name ?? ""),
+    stock: Number(p.stock ?? 0),
+    pointCost: Number(p.required_points ?? p.point_cost ?? 0),
+  };
+}
+
+export async function getAdminProducts(): Promise<AdminProduct[]> {
+  const res = await fetch(`${API_URL}/admin/stock`, { headers: authHeaders() });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const payload = (data.data ?? data) as Record<string, unknown>;
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.products)
+      ? (payload.products as Record<string, unknown>[])
+      : [];
+  return list.map(mapProduct);
+}
+
+export async function createProduct(payload: {
+  name: string;
+  requiredPoints: number;
+  stock: number;
+}): Promise<AdminProduct> {
+  const res = await fetch(`${API_URL}/admin/rewards`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      product_name: payload.name,
+      required_points: payload.requiredPoints,
+      stock: payload.stock,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal menambah produk");
+  }
+  const data = await res.json();
+  return mapProduct((data.data ?? data) as Record<string, unknown>);
+}
+
+export async function updateProduct(
+  id: string,
+  payload: { name: string; stock: number; pointCost: number },
+): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/rewards/${id}/update`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      product_name: payload.name,
+      required_points: payload.pointCost,
+      stock: payload.stock,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui produk");
+  }
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/rewards/${id}/delete`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal menghapus produk");
+  }
+}
+
+export const ACTIVITY_LOGS: ActivityLog[] = [
+  { id: "1", action: "Berhasil Login", timestamp: "Hari ini, 08:30 WIB", color: "primary" },
+  { id: "2", action: "Verifikasi Setoran #VRF-001", timestamp: "Kemarin, 14:20 WIB", color: "secondary" },
+  { id: "3", action: "Update Stok Tumbler", timestamp: "18 Jun, 10:15 WIB", color: "tertiary" },
+];
+
+// ---------------------------------------------------------------------------
+// Admin Chat
+// ---------------------------------------------------------------------------
+
+export async function getAdminChatSessions(): Promise<AdminChatSession[]> {
+  const res = await fetch(`${API_URL}/admin/chats`, { headers: authHeaders() });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const list = Array.isArray(data) ? data : (data.data ?? []);
+  return (list as Record<string, unknown>[]).map((s) => {
+    const user = s.user as Record<string, unknown> | undefined;
+    return {
+      id: Number(s.id ?? 0),
+      userId: String(s.user_id ?? user?.id ?? ""),
+      userName: String(s.user_name ?? user?.full_name ?? user?.name ?? "User"),
+      userEmail: String(s.user_email ?? user?.email ?? ""),
+      lastMessage: String(s.last_message ?? ""),
+      lastMessageAt: String(s.last_message_at ?? s.updated_at ?? ""),
+      unreadCount: Number(s.unread_count ?? 0),
+    };
+  });
+}
+
+export async function getAdminChatMessages(chatId: number): Promise<ChatMessage[]> {
+  const res = await fetch(`${API_URL}/admin/chats/${chatId}`, { headers: authHeaders() });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const payload = data.data ?? data;
+  const msgs: Record<string, unknown>[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.messages)
+      ? payload.messages
+      : [];
+  return msgs.map((m) => {
+    const sender = m.sender as Record<string, unknown> | undefined;
+    const isAdmin = (sender?.role ?? m.from_admin) === "admin" || Boolean(m.from_admin);
+    return {
+      id: String(m.id ?? Math.random()),
+      sender: isAdmin ? "agent" : "user",
+      senderName: String(sender?.full_name ?? m.sender_name ?? (isAdmin ? "Admin" : "User")),
+      text: String(m.message ?? m.text ?? ""),
+      timeLabel: new Date(
+        (m.created_at as string | undefined) ?? Date.now(),
+      ).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+    } satisfies ChatMessage;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reward Orders
+// ---------------------------------------------------------------------------
+
+const STATUS_MAP: Record<string, RewardOrderStatus> = {
+  pending:    "menunggu",
+  menunggu:   "menunggu",
+  dikemas:    "dikemas",
+  pengiriman: "pengiriman",
+  selesai:    "selesai",
+};
+
+export async function getAdminRewardOrders(): Promise<AdminRewardOrder[]> {
+  const res = await fetch(`${API_URL}/admin/rewards`, { headers: authHeaders() });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const payload = (data.data ?? data) as Record<string, unknown>;
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.orders)
+      ? (payload.orders as Record<string, unknown>[])
+      : [];
+  return list.map((o) => {
+    const user = o.user as Record<string, unknown> | undefined;
+    return {
+      id: String(o.id ?? ""),
+      userId: String(o.user_id ?? user?.id ?? ""),
+      userName: String(user?.full_name ?? user?.name ?? "User"),
+      userPhone: String(user?.phone ?? "—"),
+      rewardName: String(o.product_name ?? "—"),
+      qty: Number(o.quantity ?? 1),
+      pointPerItem: Number(o.point_per_item ?? 0),
+      totalPoints: Number(o.total_points ?? 0),
+      status: STATUS_MAP[String(o.status ?? "pending")] ?? "menunggu",
+      createdAt: String(o.created_at ?? ""),
+    };
+  });
+}
+
+export async function updateRewardOrderStatus(
+  id: string,
+  status: "dikemas" | "pengiriman",
+): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/rewards/${id}/status/${status}`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui status");
+  }
+}
+
+export async function sendAdminMessage(chatId: number, message: string): Promise<void> {
+  const form = new FormData();
+  form.append("message", message);
+  const res = await fetch(`${API_URL}/admin/chats/${chatId}/send`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal mengirim pesan");
+  }
+}

@@ -4,14 +4,25 @@ import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
 import { getNotifications } from "@/lib/api";
+import { useEcho } from "@/context/EchoContext";
 import type { AppNotification } from "@/lib/types";
 
 export default function NotificationsPage() {
-  const [items, setItems] = useState<AppNotification[]>([]);
+  const { notifications: realtimeNotifs, markAllRead } = useEcho();
+  const [historical, setHistorical] = useState<AppNotification[]>([]);
 
   useEffect(() => {
-    getNotifications().then(setItems);
+    getNotifications().then(setHistorical);
+    markAllRead();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Merge: real-time first, then historical (dedup by id)
+  const seenIds = new Set<string>();
+  const items: AppNotification[] = [];
+  for (const n of [...realtimeNotifs, ...historical]) {
+    if (!seenIds.has(n.id)) { seenIds.add(n.id); items.push(n); }
+  }
 
   const groups: AppNotification["group"][] = ["Terbaru", "Kemarin"];
 
@@ -68,7 +79,7 @@ export default function NotificationsPage() {
 
         {items.length === 0 && (
           <div className="text-center py-20 text-on-surface-variant">
-            Memuat notifikasi…
+            Belum ada notifikasi.
           </div>
         )}
       </div>

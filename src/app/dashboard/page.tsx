@@ -5,19 +5,27 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
 import { getDashboard } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/ui/Toast";
 import type { DashboardData } from "@/lib/types";
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const { toast, showToast } = useToast();
   const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
-    getDashboard().then(setData);
-  }, []);
+    getDashboard()
+      .then(setData)
+      .catch((e) => showToast(e instanceof Error ? e.message : "Gagal memuat dashboard", "error"));
+  }, [showToast]);
 
-  const balance = data?.pointBalance ?? 0;
+  const balance = user?.pointBalance ?? 0;
 
   return (
     <AppShell>
+      {toast && <Toast {...toast} />}
       <div className="max-w-[1280px] mx-auto px-container-padding-mobile md:px-container-padding-desktop py-stack-lg space-y-stack-lg">
         {/* Hero */}
         <section className="eco-gradient rounded-[2rem] p-stack-lg md:p-12 relative overflow-hidden shadow-xl">
@@ -88,42 +96,57 @@ export default function DashboardPage() {
                   </p>
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-surface-container-low border-b border-outline-variant">
-                    <tr>
-                      {["Tanggal", "Kategori", "Berat", "Poin", "Status"].map(
-                        (h) => (
-                          <th
-                            key={h}
-                            className="px-4 py-4 text-label-sm font-label-sm text-on-surface-variant uppercase"
-                          >
-                            {h}
-                          </th>
-                        ),
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant">
+                <>
+                  {/* Mobile: card list */}
+                  <div className="md:hidden divide-y divide-outline-variant">
                     {data.recentTransactions.map((t) => (
-                      <tr
-                        key={t.id}
-                        className="hover:bg-surface-container-low transition-colors"
-                      >
-                        <td className="px-4 py-4 text-body-md">{t.date}</td>
-                        <td className="px-4 py-4 text-body-md">{t.category}</td>
-                        <td className="px-4 py-4 text-body-md">
-                          {t.weightKg ? `${t.weightKg} kg` : "—"}
-                        </td>
-                        <td className="px-4 py-4 font-bold text-primary-container">
-                          {t.points ? `+${t.points.toLocaleString("id-ID")}` : "—"}
-                        </td>
-                        <td className="px-4 py-4">
-                          <StatusBadge status={t.status} />
-                        </td>
-                      </tr>
+                      <div key={t.id} className="flex items-center gap-3 p-4">
+                        <div className="w-9 h-9 rounded-full bg-primary-container/20 text-primary flex items-center justify-center shrink-0">
+                          <Icon name={t.iconKey} fill className="text-base" />
+                        </div>
+                        <div className="flex-grow min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-sm text-on-surface truncate">{t.category}</span>
+                            <span className="font-bold text-primary text-sm shrink-0">
+                              {t.points ? `+${t.points.toLocaleString("id-ID")}` : "—"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-label-sm text-on-surface-variant">{t.date}</span>
+                            <StatusBadge status={t.status} />
+                          </div>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                  {/* Desktop: table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-surface-container-low border-b border-outline-variant">
+                        <tr>
+                          {["Tanggal", "Kategori", "Berat", "Poin", "Status"].map((h) => (
+                            <th key={h} className="px-4 py-4 text-label-sm font-label-sm text-on-surface-variant uppercase">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant">
+                        {data.recentTransactions.map((t) => (
+                          <tr key={t.id} className="hover:bg-surface-container-low transition-colors">
+                            <td className="px-4 py-4 text-body-md">{t.date}</td>
+                            <td className="px-4 py-4 text-body-md">{t.category}</td>
+                            <td className="px-4 py-4 text-body-md">{t.weightGram != null ? `${t.weightGram} g` : "—"}</td>
+                            <td className="px-4 py-4 font-bold text-primary-container">
+                              {t.points ? `+${t.points.toLocaleString("id-ID")}` : "—"}
+                            </td>
+                            <td className="px-4 py-4"><StatusBadge status={t.status} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -182,7 +205,7 @@ export default function DashboardPage() {
   );
 }
 
-function StatusBadge({ status }: { status: "success" | "pending" | "failed" }) {
+function StatusBadge({ status }: { status: import("@/lib/types").TxStatus }) {
   if (status === "success")
     return (
       <span className="px-3 py-1 bg-[#d1e7dd] text-[#0f5132] rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
@@ -193,6 +216,12 @@ function StatusBadge({ status }: { status: "success" | "pending" | "failed" }) {
     return (
       <span className="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
         <Icon name="pending" className="text-[14px]" /> Menunggu
+      </span>
+    );
+  if (status === "process")
+    return (
+      <span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
+        <Icon name="autorenew" className="text-[14px]" /> Diproses
       </span>
     );
   return (

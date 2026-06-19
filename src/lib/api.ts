@@ -10,241 +10,226 @@ import type {
   User,
 } from "./types";
 
-/**
- * ============================================================================
- * api.ts — Lapisan tunggal untuk SEMUA komunikasi ke backend.
- * ----------------------------------------------------------------------------
- * Saat ini setiap fungsi mengembalikan MOCK DATA dengan delay buatan
- * (lihat `mockDelay`). Tiap fungsi dilengkapi:
- *   1. Blok `TODO(API)`  : deskripsi endpoint asli (method, path, body, resp).
- *   2. Blok `// REAL:`   : contoh kode fetch yang tinggal di-uncomment.
- *   3. `return mockX`    : data palsu yang dipakai sekarang.
- *
- * Cara migrasi ke backend asli:
- *   1. Set NEXT_PUBLIC_API_BASE_URL di .env.local
- *   2. Simpan token via setAuthToken() setelah login.
- *   3. Uncomment blok `// REAL:` dan hapus baris `return mockX`.
- *   4. Parsing otomatis karena response sudah diketik (lihat types.ts).
- * ============================================================================
- */
-
-export const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.smartecobank.example.com";
+export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const API_URL = `${BASE_URL}/api`;
 
 let authToken: string | null = null;
-export function setAuthToken(token: string | null) {
-  authToken = token;
+let onUnauthorized: (() => void) | null = null;
+
+if (typeof window !== "undefined") {
+  authToken = localStorage.getItem("eco_token");
 }
 
-// Header standar untuk request terautentikasi (dipakai saat REAL aktif).
+export function setAuthToken(token: string | null) {
+  authToken = token;
+  if (typeof window !== "undefined") {
+    if (token) {
+      localStorage.setItem("eco_token", token);
+      document.cookie = `eco_token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
+    } else {
+      localStorage.removeItem("eco_token");
+      document.cookie = "eco_token=; path=/; max-age=0";
+      document.cookie = "eco_role=; path=/; max-age=0";
+    }
+  }
+}
+
+export function setAuthRole(role: string) {
+  if (typeof window !== "undefined") {
+    document.cookie = `eco_role=${role}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
+  }
+}
+
+export function setUnauthorizedHandler(handler: () => void) {
+  onUnauthorized = handler;
+}
+
+export function getStoredToken(): string | null {
+  return authToken;
+}
+
 export function authHeaders(): HeadersInit {
   return {
-    "Content-Type": "application/json",
+    Accept: "application/json",
     ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
   };
 }
 
-const mockDelay = (ms = 600) => new Promise((r) => setTimeout(r, ms));
-
 // ---------------------------------------------------------------------------
-// MOCK DATA
-// ---------------------------------------------------------------------------
-const mockUser: User = {
-  id: "usr_001",
-  fullName: "Budi Santoso",
-  email: "budi@email.com",
-  phone: "0812xxxxxxx",
-  address: "Jl. Hijau Lestari No. 123, Jakarta",
-  avatarUrl: null,
-  pointBalance: 12450,
-  greenLevel: "Level 4: Green Hero",
-  co2SavedKg: 12,
-};
-
-const mockTransactions: Transaction[] = [
-  {
-    id: "TRX-9920110",
-    date: "2024-10-24",
-    timeLabel: "14:20 WIB",
-    category: "Plastik PET",
-    iconKey: "recycling",
-    weightKg: 12.5,
-    points: 1250,
-    status: "success",
-    type: "deposit",
-  },
-  {
-    id: "TRX-9920108",
-    date: "2024-10-24",
-    timeLabel: "09:15 WIB",
-    category: "Kertas & Karton",
-    iconKey: "description",
-    weightKg: 5.2,
-    points: null,
-    status: "pending",
-    type: "deposit",
-  },
-  {
-    id: "TRX-9920085",
-    date: "2024-10-22",
-    timeLabel: "16:45 WIB",
-    category: "Logam/Aluminium",
-    iconKey: "kitchen",
-    weightKg: 3.0,
-    points: 1000,
-    status: "success",
-    type: "deposit",
-  },
-  {
-    id: "TRX-9920054",
-    date: "2024-10-20",
-    timeLabel: "11:00 WIB",
-    category: "Kaca",
-    iconKey: "wine_bar",
-    weightKg: 8.7,
-    points: 870,
-    status: "success",
-    type: "deposit",
-  },
-];
-
-const mockRewards: Reward[] = [
-  {
-    id: "rwd_001",
-    name: "Eco-Insulated Tumbler",
-    description:
-      "Vacuum insulated 750ml stainless steel. Dingin 24 jam / panas 12 jam.",
-    pointCost: 2500,
-    category: "Eco-Home",
-    stock: 42,
-    stockMax: 100,
-    badge: "Best Seller",
-  },
-  {
-    id: "rwd_002",
-    name: "Heavyweight Totebag",
-    description:
-      "100% katun organik bersertifikat GOTS. Tali lebar, daya angkut kuat.",
-    pointCost: 1200,
-    category: "Accessories",
-    stock: 128,
-    stockMax: 150,
-    badge: null,
-  },
-  {
-    id: "rwd_003",
-    name: "Recycled Tech Cap",
-    description:
-      "Dari 100% plastik PET daur ulang. Breathable, adjustable fit.",
-    pointCost: 1800,
-    category: "Apparel",
-    stock: 5,
-    stockMax: 40,
-    badge: "Limited",
-  },
-];
-
-const mockLocations: DropLocation[] = [
-  {
-    id: "loc_001",
-    name: "Sudirman Green Hub",
-    address: "Jl. Jend. Sudirman No. 45, Jakarta Pusat",
-    distanceKm: 0.8,
-    isOpen: true,
-    openInfo: "Buka sampai 20:00",
-    visitorsToday: 12,
-    mapX: 45,
-    mapY: 35,
-  },
-  {
-    id: "loc_002",
-    name: "Thamrin Eco Point",
-    address: "Jl. MH Thamrin No. 12, Jakarta Pusat",
-    distanceKm: 2.4,
-    isOpen: false,
-    openInfo: "Buka kembali besok, 08:00",
-    visitorsToday: 0,
-    mapX: 65,
-    mapY: 55,
-  },
-  {
-    id: "loc_003",
-    name: "Kuningan Recycle",
-    address: "Rasuna Said Tower B, Jakarta Selatan",
-    distanceKm: 3.1,
-    isOpen: true,
-    openInfo: "Fasilitas ramah lingkungan lengkap",
-    visitorsToday: 7,
-    mapX: 25,
-    mapY: 48,
-  },
-];
-
-const mockNotifications: AppNotification[] = [
-  {
-    id: "ntf_001",
-    iconKey: "check_circle",
-    title: "Setoran berhasil divalidasi",
-    body: "Setoran Plastik PET 12.5kg Anda mendapatkan 1.250 poin.",
-    timeAgo: "5 menit lalu",
-    group: "Terbaru",
-    read: false,
-  },
-  {
-    id: "ntf_002",
-    iconKey: "redeem",
-    title: "Penukaran reward diproses",
-    body: "Eco-Insulated Tumbler Anda sedang disiapkan untuk pengiriman.",
-    timeAgo: "2 jam lalu",
-    group: "Terbaru",
-    read: false,
-  },
-  {
-    id: "ntf_003",
-    iconKey: "eco",
-    title: "Laporan hijau mingguan",
-    body: "Anda mencegah 45kg CO2 minggu ini. Luar biasa!",
-    timeAgo: "Kemarin, 09:00",
-    group: "Kemarin",
-    read: true,
-  },
-];
-
-// ---------------------------------------------------------------------------
-// AUTH (W1 - Login & Registrasi)
+// Mappers (snake_case → camelCase)
 // ---------------------------------------------------------------------------
 
-/**
- * TODO(API): POST {BASE_URL}/auth/login
- *   Body : { email: string, password: string }
- *   Resp : { token: string, user: User }
- *   Logic: simpan token -> setAuthToken(), lalu fetch dashboard.
- *   Error: 401 kredensial salah, 422 validasi gagal.
- */
-export async function login(
-  email: string,
-  _password: string,
-): Promise<AuthResponse> {
-  await mockDelay();
-  // REAL:
-  // const res = await fetch(`${BASE_URL}/auth/login`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify({ email, password: _password }),
-  // });
-  // if (!res.ok) throw new Error("Login gagal");
-  // const data: AuthResponse = await res.json();
-  // setAuthToken(data.token);
-  // return data;
-  return { token: "mock-token", user: { ...mockUser, email } };
+function mapUser(u: Record<string, unknown>): User {
+  return {
+    id: String(u.id ?? ""),
+    fullName: (u.full_name ?? u.fullName ?? "") as string,
+    email: (u.email ?? "") as string,
+    phone: (u.phone ?? "") as string,
+    address: (u.address ?? "") as string,
+    avatarUrl: (u.avatar_url ?? u.avatarUrl ?? null) as string | null,
+    pointBalance: Number(u.total_points ?? u.point_balance ?? u.pointBalance ?? 0),
+    greenLevel: (u.green_level ?? u.greenLevel ?? "") as string,
+    co2SavedKg: Number(u.co2_saved_kg ?? u.co2SavedKg ?? 0),
+    role: (u.role ?? "user") as string,
+  };
 }
 
-/**
- * TODO(API): POST {BASE_URL}/auth/register
- *   Body : { full_name, email, phone, password, password_confirmation,
- *            address, accept_terms: boolean }
- *   Resp : { token: string, user: User }
- */
+function unwrap(data: Record<string, unknown>): Record<string, unknown> {
+  return (data.data as Record<string, unknown>) ?? data;
+}
+
+async function apiFetch(
+  input: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const res = await fetch(input, init);
+  if (res.status === 401) {
+    setAuthToken(null);
+    onUnauthorized?.();
+    throw new Error("Sesi berakhir, silakan login kembali");
+  }
+  return res;
+}
+
+function parseDateLabel(iso: string): { date: string; timeLabel: string } {
+  try {
+    const d = new Date(iso);
+    return {
+      date: d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }),
+      timeLabel: d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
+    };
+  } catch {
+    return { date: iso?.slice(0, 10) ?? "", timeLabel: "" };
+  }
+}
+
+function mapTransaction(t: Record<string, unknown>): Transaction {
+  const rawType = (t.type as string) ?? "";
+  const type: Transaction["type"] =
+    rawType === "setoran" || rawType === "deposit" ? "deposit" : "redeem";
+
+  const isoDate = (t.date ?? t.created_at ?? "") as string;
+  const { date, timeLabel } = parseDateLabel(isoDate);
+
+  const points =
+    type === "deposit"
+      ? t.earned_points !== undefined && t.earned_points !== null
+        ? Number(t.earned_points)
+        : null
+      : t.total_points !== undefined && t.total_points !== null
+        ? Number(t.total_points)
+        : null;
+
+  const category =
+    type === "deposit"
+      ? ((t.category_name ?? t.category ?? "") as string)
+      : ((t.product_name ?? t.rewardName ?? t.reward_name ?? "") as string);
+
+  const aiRaw = t.ai_result as Record<string, unknown> | undefined;
+
+  return {
+    id: String(t.id ?? ""),
+    date,
+    timeLabel: (t.time_label ?? t.timeLabel ?? timeLabel) as string,
+    category,
+    iconKey: type === "deposit" ? "recycling" : "redeem",
+    weightGram:
+      t.weight_gram !== undefined && t.weight_gram !== null
+        ? Number(t.weight_gram)
+        : t.weight_kg !== undefined && t.weight_kg !== null
+          ? Number(t.weight_kg) * 1000
+          : null,
+    points,
+    status: (t.status ?? "pending") as Transaction["status"],
+    type,
+    // setoran fields
+    locationName: (t.location_name ?? t.locationName) as string | undefined,
+    photoPath: (t.photo_path ?? t.photoPath) as string | undefined,
+    rejectionReason: (t.rejection_reason ?? t.rejectionReason ?? null) as string | null | undefined,
+    aiResult: aiRaw
+      ? {
+          confidenceScore: Number(aiRaw.confidence_score ?? aiRaw.confidenceScore ?? 0),
+          detectedCategory: (aiRaw.detected_category ?? aiRaw.detectedCategory ?? "") as string,
+          result: (aiRaw.result ?? "") as string,
+          message: (aiRaw.message ?? "") as string,
+        }
+      : undefined,
+    qrCode: (t.qr_code ?? t.qrCode ?? null) as string | null | undefined,
+    // tukar fields
+    rewardName: type === "redeem" ? category : undefined,
+    productImage: (t.product_image ?? t.productImage) as string | undefined,
+    qty: t.quantity !== undefined ? Number(t.quantity) : t.qty !== undefined ? Number(t.qty) : undefined,
+    pointPerItem: t.point_per_item !== undefined ? Number(t.point_per_item) : undefined,
+    totalPoints: t.total_points !== undefined ? Number(t.total_points) : undefined,
+    shippingStatus: (t.shipping_status ?? t.shippingStatus) as Transaction["shippingStatus"] | undefined,
+  };
+}
+
+function mapReward(r: Record<string, unknown>): Reward {
+  return {
+    id: String(r.id ?? ""),
+    name: (r.product_name ?? r.name ?? "") as string,
+    description: (r.description ?? "") as string,
+    pointCost: Number(r.required_points ?? r.point_cost ?? r.pointCost ?? 0),
+    category: (r.category ?? "") as string,
+    stock: Number(r.stock ?? 0),
+    stockMax: Number(r.stock_max ?? r.stockMax ?? r.stock ?? 0),
+    badge: (r.badge ?? null) as string | null,
+    image: (r.image ?? r.product_image ?? null) as string | null,
+  };
+}
+
+function mapLocation(l: Record<string, unknown>): DropLocation {
+  const status = (l.status as string) ?? "";
+  const isFull = Boolean(l.is_full ?? false);
+  const isActive = status === "Tersedia" || status === "Aktif";
+  return {
+    id: String(l.id ?? ""),
+    name: (l.location_name ?? l.name ?? `Lokasi #${l.id}`) as string,
+    address: (l.alamat ?? l.address ?? "") as string,
+    distanceKm: Number(l.distance_km ?? l.distanceKm ?? 0),
+    isOpen: isActive && !isFull,
+    isFull,
+    openInfo: isFull
+      ? "Lokasi penuh"
+      : isActive
+        ? "Tersedia"
+        : status || "Tidak aktif",
+    visitorsToday: Number(l.visitors_today ?? l.visitorsToday ?? 0),
+    lat: Number(l.lat ?? l.latitude ?? 0),
+    lng: Number(l.long ?? l.longitude ?? l.lng ?? 0),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// AUTH
+// ---------------------------------------------------------------------------
+
+export async function login(
+  email: string,
+  password: string,
+): Promise<AuthResponse> {
+  const form = new FormData();
+  form.append("email", email);
+  form.append("password", password);
+  const res = await fetch(`${API_URL}/login`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Login gagal");
+  }
+  const raw = await res.json();
+  const data = unwrap(raw);
+  const token = (data.token ?? raw.token) as string;
+  const userRaw = (data.user ?? raw.user ?? data) as Record<string, unknown>;
+  setAuthToken(token);
+  setAuthRole((userRaw.role ?? "user") as string);
+  return { token, user: mapUser(userRaw) };
+}
+
 export async function register(payload: {
   fullName: string;
   email: string;
@@ -252,243 +237,466 @@ export async function register(payload: {
   password: string;
   address: string;
 }): Promise<AuthResponse> {
-  await mockDelay(1200);
-  // REAL: kirim body di atas, parse token + user dari response.
-  return {
-    token: "mock-token",
-    user: {
-      ...mockUser,
-      fullName: payload.fullName,
-      email: payload.email,
-      phone: payload.phone,
-      address: payload.address,
-    },
-  };
+  const form = new FormData();
+  form.append("full_name", payload.fullName);
+  form.append("email", payload.email);
+  form.append("phone", payload.phone);
+  form.append("address", payload.address);
+  form.append("password", payload.password);
+  form.append("password_confirmation", payload.password);
+  const res = await fetch(`${API_URL}/register`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      (err as { message?: string }).message ?? "Registrasi gagal",
+    );
+  }
+  const raw = await res.json();
+  const data = unwrap(raw);
+  const token = (data.token ?? raw.token) as string;
+  const userRaw = (data.user ?? raw.user ?? data) as Record<string, unknown>;
+  setAuthToken(token);
+  setAuthRole("user");
+  return { token, user: mapUser(userRaw) };
 }
 
-/**
- * TODO(API): POST {BASE_URL}/auth/logout (header Authorization).
- */
 export async function logout(): Promise<void> {
-  await mockDelay(200);
-  // REAL: await fetch(`${BASE_URL}/auth/logout`, { method: "POST", headers: authHeaders() });
+  await fetch(`${API_URL}/logout`, {
+    method: "POST",
+    headers: authHeaders(),
+  }).catch(() => {});
   setAuthToken(null);
 }
 
+export async function getUser(): Promise<User> {
+  const res = await apiFetch(`${API_URL}/user`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Gagal memuat profil");
+  const raw = await res.json();
+  return mapUser(unwrap(raw));
+}
+
 // ---------------------------------------------------------------------------
-// DASHBOARD (W2 - Beranda)
+// DASHBOARD
 // ---------------------------------------------------------------------------
 
-/**
- * TODO(API): GET {BASE_URL}/dashboard (header Authorization)
- *   Resp : { point_balance, recent_transactions: Transaction[],
- *            popular_rewards: Reward[] }
- */
 export async function getDashboard(): Promise<DashboardData> {
-  await mockDelay();
-  // REAL:
-  // const res = await fetch(`${BASE_URL}/dashboard`, { headers: authHeaders() });
-  // return (await res.json()) as DashboardData;
+  const res = await apiFetch(`${API_URL}/dashboard`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Gagal memuat dashboard");
+  const raw = await res.json();
+  const data = unwrap(raw) as Record<string, unknown>;
   return {
-    pointBalance: mockUser.pointBalance,
-    recentTransactions: mockTransactions.slice(0, 3),
-    popularRewards: mockRewards.slice(0, 2),
+    recentTransactions: (
+      (data.last_activity ?? data.recent_transactions ?? data.recentTransactions ?? []) as Record<string, unknown>[]
+    ).map(mapTransaction),
+    popularRewards: (
+      (data.popularRewards ?? data.popular_rewards ?? []) as Record<string, unknown>[]
+    ).map(mapReward),
+    totalWaste: Number(data.totalWaste ?? data.total_waste ?? 0),
   };
 }
 
 // ---------------------------------------------------------------------------
-// LOCATIONS (W3 - Lokasi Posko)
+// LOCATIONS
 // ---------------------------------------------------------------------------
 
-/**
- * TODO(API): GET {BASE_URL}/locations?q={query}
- *   Resp : DropLocation[] (urut berdasarkan jarak terdekat).
- *   Catatan: ganti mapX/mapY dgn lat/lng asli + integrasi peta (mis. Mapbox/Leaflet).
- */
-export async function getLocations(query = ""): Promise<DropLocation[]> {
-  await mockDelay();
-  // REAL:
-  // const res = await fetch(`${BASE_URL}/locations?q=${encodeURIComponent(query)}`, { headers: authHeaders() });
-  // return (await res.json()) as DropLocation[];
-  if (!query) return mockLocations;
-  const q = query.toLowerCase();
-  return mockLocations.filter(
-    (l) =>
-      l.name.toLowerCase().includes(q) || l.address.toLowerCase().includes(q),
-  );
+export interface LocationsResult {
+  near: DropLocation[];
+  all: DropLocation[];
+}
+
+export async function getLocations(
+  query = "",
+  userLat?: number,
+  userLong?: number,
+): Promise<LocationsResult> {
+  const params = new URLSearchParams();
+
+  if (userLat !== undefined && userLong !== undefined) {
+    params.set("lat", String(userLat));
+    params.set("long", String(userLong));
+  } else if (typeof window !== "undefined" && navigator.geolocation) {
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          timeout: 5000,
+          maximumAge: 60000,
+        }),
+      );
+      params.set("lat", String(pos.coords.latitude));
+      params.set("long", String(pos.coords.longitude));
+    } catch {
+      params.set("lat", "-7.250445");
+      params.set("long", "112.768845");
+    }
+  } else {
+    params.set("lat", "-7.250445");
+    params.set("long", "112.768845");
+  }
+
+  const res = await apiFetch(`${API_URL}/locations?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Gagal memuat lokasi");
+  const raw = await res.json();
+  const data = unwrap(raw) as Record<string, unknown>;
+
+  let near: DropLocation[] = (
+    (data.near_location ?? []) as Record<string, unknown>[]
+  ).map(mapLocation);
+  const all: DropLocation[] = (
+    (data.all_location ?? []) as Record<string, unknown>[]
+  ).map(mapLocation);
+
+  if (query) {
+    const q = query.toLowerCase();
+    near = near.filter(
+      (l) =>
+        l.name.toLowerCase().includes(q) ||
+        l.address.toLowerCase().includes(q),
+    );
+  }
+
+  return { near, all };
 }
 
 // ---------------------------------------------------------------------------
-// AI SCANNER (W4 - Setor Sampah AI)
+// AI SCANNER
 // ---------------------------------------------------------------------------
 
-/**
- * TODO(API): POST {BASE_URL}/waste/analyze  (multipart/form-data)
- *   Body : { image: File }
- *   Resp : ScanResult — hasil deteksi model AI.
- *   Logic: kirim foto, model mengembalikan produk, kategori, tag, confidence.
- */
-export async function analyzeWaste(_image?: File): Promise<ScanResult> {
-  await mockDelay(1500);
-  // REAL:
-  // const form = new FormData();
-  // if (_image) form.append("image", _image);
-  // const res = await fetch(`${BASE_URL}/waste/analyze`, {
-  //   method: "POST",
-  //   headers: { ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
-  //   body: form,
-  // });
-  // return (await res.json()) as ScanResult;
+export async function analyzeWaste(image?: File): Promise<ScanResult> {
+  const form = new FormData();
+  if (image) form.append("waste_image", image);
+  const res = await apiFetch(`${API_URL}/ai-scan`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      (err as { message?: string }).message ?? "Analisis AI gagal",
+    );
+  }
+  const raw = await res.json();
+  const data = unwrap(raw) as Record<string, unknown>;
+  const mappedCat = data.mapped_category as Record<string, unknown> | undefined;
+  const categoryName = (data.category_name ?? data.category ?? "") as string;
+  const resultLabel = (data.result ?? "") as string;
+  const tags = [categoryName, resultLabel].filter(Boolean) as string[];
   return {
-    depositorName: mockUser.fullName,
-    locationName: "Eco Central Hub",
-    productName: "Botol Air Mineral PET 600ml",
-    category: "Anorganik",
-    tags: ["Plastik", "Botol Minuman", "Grade A"],
-    confidence: 98,
+    depositorName: "",
+    locationName: "",
+    productName: (data.product_name ?? data.productName ?? "") as string,
+    category: categoryName,
+    tags,
+    confidence: Number(data.confidence ?? 0),
+    estimatedWeight: Number(data.estimated_weight ?? 0),
+    estimatedPoint: Number(data.estimated_point ?? 0),
+    imagePath: (data.image_path ?? "") as string,
+    categoryId: (mappedCat?.id ?? data.category_id ?? data.categoryId) as string | number | undefined,
+    locationId: (data.location_id ?? data.locationId) as string | number | undefined,
+    message: (data.message ?? "") as string,
   };
 }
 
-/**
- * Estimasi poin dari berat. Konstanta sama dengan mockup W4:
- *   1.000 gram = 2 poin  (0.002 poin/gram)
- * Ini perhitungan klien; backend boleh memvalidasi ulang saat submit.
- */
 export function estimatePoints(grams: number): number {
   return Math.round(grams * 0.002 * 10) / 10;
 }
 
-/**
- * TODO(API): POST {BASE_URL}/deposits
- *   Body : { location_id, product_name, category, weight_grams }
- *   Resp : Transaction (status awal "pending" menunggu validasi admin).
- */
 export async function submitDeposit(payload: {
   productName: string;
   category: string;
   weightGrams: number;
+  locationId?: number | string;
+  categoryId?: number | string;
+  confidence?: number;
+  message?: string;
+  imagePath?: string;
 }): Promise<Transaction> {
-  await mockDelay(1200);
-  // REAL: POST body di atas, parse Transaction dari response.
-  return {
-    id: `TRX-${Math.floor(Math.random() * 9000000 + 1000000)}`,
-    date: new Date().toISOString().slice(0, 10),
-    timeLabel: "Baru saja",
-    category: payload.category,
-    iconKey: "recycling",
-    weightKg: payload.weightGrams / 1000,
-    points: null,
-    status: "pending",
-    type: "deposit",
-  };
+  const savedLocationId =
+    typeof window !== "undefined"
+      ? (localStorage.getItem("eco_selected_location") ?? "")
+      : "";
+  const form = new FormData();
+  form.append("product_name", payload.productName);
+  form.append("category_name", payload.category);
+  form.append("weight_gram", String(payload.weightGrams));
+  form.append("location_id", String(payload.locationId ?? savedLocationId));
+  form.append("category_id", String(payload.categoryId ?? ""));
+  form.append("confidence", String(payload.confidence ?? 0));
+  form.append("message", payload.message ?? "");
+  if (payload.imagePath) form.append("image_path", payload.imagePath);
+
+  const res = await apiFetch(`${API_URL}/ai-scan/submit`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      (err as { message?: string }).message ?? "Pengiriman setoran gagal",
+    );
+  }
+  const data = await res.json();
+  return mapTransaction(data.transaction ?? data);
 }
 
 // ---------------------------------------------------------------------------
-// TRANSACTIONS (W5 - Riwayat Transaksi)
+// TRANSACTIONS (History)
 // ---------------------------------------------------------------------------
 
-/**
- * TODO(API): GET {BASE_URL}/transactions?type={all|deposit|redeem}&page={n}
- *   Resp : { data: Transaction[], total: number, page: number }
- */
+export interface TransactionsResult {
+  transactions: Transaction[];
+  totalPoint: number;
+}
+
 export async function getTransactions(
   filter: "all" | "deposit" | "redeem" = "all",
-): Promise<Transaction[]> {
-  await mockDelay();
-  // REAL:
-  // const res = await fetch(`${BASE_URL}/transactions?type=${filter}`, { headers: authHeaders() });
-  // return (await res.json()).data as Transaction[];
-  if (filter === "all") return mockTransactions;
-  return mockTransactions.filter((t) => t.type === filter);
+): Promise<TransactionsResult> {
+  const res = await apiFetch(`${API_URL}/history`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Gagal memuat riwayat");
+  const raw = await res.json();
+  const payload = unwrap(raw) as Record<string, unknown>;
+
+  const totalPoint = Number(payload.totalPoint ?? payload.total_point ?? 0);
+
+  let all: Transaction[];
+  if (payload.setoran !== undefined || payload.tukar !== undefined) {
+    const deposits = ((payload.setoran ?? []) as Record<string, unknown>[]).map(mapTransaction);
+    const redeems = ((payload.tukar ?? []) as Record<string, unknown>[]).map(mapTransaction);
+    all = [...deposits, ...redeems].sort((a, b) => b.date.localeCompare(a.date));
+  } else {
+    all = (Array.isArray(payload) ? payload : []).map(mapTransaction);
+  }
+
+  const transactions = filter === "all" ? all : all.filter((t) => t.type === filter);
+  return { transactions, totalPoint };
 }
 
+export async function getTransactionDetail(
+  id: string,
+): Promise<Transaction | null> {
+  const res = await apiFetch(`${API_URL}/history/${id}`, {
+    headers: authHeaders(),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const { transactions } = await getTransactions();
+    return transactions.find((t) => t.id === id) ?? null;
+  }
+  const raw = await res.json();
+  const data = unwrap(raw) as Record<string, unknown>;
+  return mapTransaction(data.transaction ? (data.transaction as Record<string, unknown>) : data);
+}
+
+// Not yet in API — no-op placeholder
+export async function confirmDelivery(_id: string): Promise<void> {}
+
 // ---------------------------------------------------------------------------
-// REWARDS (W6 - Reward Catalog)
+// REWARDS
 // ---------------------------------------------------------------------------
 
-/**
- * TODO(API): GET {BASE_URL}/rewards?category={category}
- *   Resp : Reward[]
- */
 export async function getRewards(category = "All"): Promise<Reward[]> {
-  await mockDelay();
-  // REAL:
-  // const res = await fetch(`${BASE_URL}/rewards?category=${category}`, { headers: authHeaders() });
-  // return (await res.json()) as Reward[];
-  if (category === "All") return mockRewards;
-  return mockRewards.filter((r) => r.category === category);
+  const res = await apiFetch(`${API_URL}/rewards`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Gagal memuat reward");
+  const data = await res.json();
+  const payload = data.data ?? data;
+  const products = Array.isArray(payload) ? payload : (payload.products ?? []);
+  const all: Reward[] = (products as Record<string, unknown>[]).map(mapReward);
+  if (category === "All") return all;
+  return all.filter((r) => r.category === category);
 }
 
-/**
- * TODO(API): POST {BASE_URL}/rewards/{id}/redeem
- *   Resp : { success: boolean, new_balance: number }
- *   Error: 409 stok habis, 402 poin tidak cukup.
- */
 export async function redeemReward(
-  _rewardId: string,
+  rewardId: string,
+  quantity = 1,
 ): Promise<{ success: boolean; newBalance: number }> {
-  await mockDelay(1000);
-  // REAL: POST ke endpoint redeem, parse new_balance dari response.
-  return { success: true, newBalance: mockUser.pointBalance };
+  const form = new FormData();
+  form.append("product_id", rewardId);
+  form.append("quantity", String(quantity));
+  const res = await apiFetch(`${API_URL}/rewards/exchange`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Penukaran gagal");
+  }
+  const data = await res.json();
+  return {
+    success: true,
+    newBalance: Number(data.new_balance ?? data.newBalance ?? 0),
+  };
 }
 
 // ---------------------------------------------------------------------------
-// NOTIFICATIONS (W8)
+// CHATBOT / CUSTOMER SERVICE
 // ---------------------------------------------------------------------------
 
-/**
- * TODO(API): GET {BASE_URL}/notifications
- *   Resp : AppNotification[]
- */
-export async function getNotifications(): Promise<AppNotification[]> {
-  await mockDelay();
-  // REAL: const res = await fetch(`${BASE_URL}/notifications`, { headers: authHeaders() });
-  return mockNotifications;
+export async function getChatHistory(): Promise<{ messages: ChatMessage[]; chatId: number | null }> {
+  const res = await apiFetch(`${API_URL}/chatbot`, { headers: authHeaders() });
+  if (!res.ok) return { messages: initialSupportMessages(), chatId: null };
+  const data = await res.json();
+  const payload = data.data ?? data;
+  const chatId: number | null =
+    typeof payload === "object" && !Array.isArray(payload)
+      ? (((payload.chat as Record<string, unknown>)?.id ?? payload.chat_id ?? payload.chatId ?? null) as number | null)
+      : null;
+  const rawMsgs: unknown = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.messages)
+      ? payload.messages
+      : (payload.data ?? []);
+  const msgs = (Array.isArray(rawMsgs) ? rawMsgs : []) as Record<string, unknown>[];
+  if (!msgs.length) return { messages: initialSupportMessages(), chatId };
+  return {
+    messages: msgs.map(
+      (m): ChatMessage => {
+        const senderObj =
+          typeof m.sender === "object" && m.sender !== null
+            ? (m.sender as Record<string, unknown>)
+            : null;
+        const isAdmin = senderObj
+          ? senderObj.role === "admin"
+          : Boolean(m.from_admin);
+        return {
+          id: String(m.id ?? Math.random()),
+          sender: isAdmin ? "agent" : "user",
+          senderName: String(
+            senderObj?.full_name ??
+            m.sender_name ??
+            m.senderName ??
+            (isAdmin ? "Admin" : "Anda"),
+          ),
+          text: (m.message ?? m.text ?? "") as string,
+          timeLabel: (m.time_label ??
+            m.timeLabel ??
+            new Date(
+              (m.created_at as string | number | undefined) ?? Date.now(),
+            ).toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })) as string,
+        };
+      },
+    ),
+    chatId,
+  };
 }
 
-// ---------------------------------------------------------------------------
-// CUSTOMER SERVICE (W9)
-// ---------------------------------------------------------------------------
-
-/**
- * TODO(API): POST {BASE_URL}/support/messages
- *   Body : { message: string, history: ChatMessage[] }
- *   Resp : ChatMessage (balasan dari bot/agen).
- *   Logic: bisa diarahkan ke chatbot AI atau agen manusia.
- */
 export async function sendSupportMessage(
   message: string,
-  _history: ChatMessage[] = [],
-): Promise<ChatMessage> {
-  await mockDelay(1200);
-  // REAL: POST body di atas, parse ChatMessage dari response.
-  return {
-    id: `msg_${Date.now()}`,
-    sender: "agent",
-    senderName: "Sarah",
-    text: `Terima kasih atas pesan Anda: "${message}". Tim kami akan segera membantu memeriksa hal ini untuk Anda.`,
-    timeLabel: new Date().toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  };
+): Promise<{ chatId: number | null }> {
+  const form = new FormData();
+  form.append("message", message);
+  const res = await apiFetch(`${API_URL}/chatbot/send`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      (err as { message?: string }).message ?? "Gagal mengirim pesan",
+    );
+  }
+  const data = await res.json();
+  const payload = data.data ?? data;
+  const chatId: number | null =
+    typeof payload === "object" && !Array.isArray(payload)
+      ? (((payload.user_message as Record<string, unknown>)?.chat_id ?? payload.chat_id ?? payload.chatId ?? null) as number | null)
+      : null;
+  return { chatId };
 }
 
 export function initialSupportMessages(): ChatMessage[] {
   return [
     {
       id: "msg_init_1",
-      sender: "bot",
-      senderName: "Lumina Bot",
-      text: "Halo! Saya Lumina Bot. Ada yang bisa saya bantu hari ini terkait perbankan berkelanjutan Anda?",
-      timeLabel: "09:15",
-    },
-    {
-      id: "msg_init_2",
       sender: "agent",
       senderName: "Sarah",
-      text: "Selamat pagi! Saya Sarah dari tim Customer Service Smart Eco Bank. Mari kita selesaikan bersama.",
-      timeLabel: "09:17",
+      text: "Halo! Saya Sarah dari tim Admin Smart Eco Bank. Ada yang bisa saya bantu hari ini? 😊",
+      timeLabel: "09:15",
     },
   ];
+}
+
+// ---------------------------------------------------------------------------
+// NOTIFICATIONS
+// ---------------------------------------------------------------------------
+
+function notifTimeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Baru saja";
+  if (mins < 60) return `${mins} mnt lalu`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} jam lalu`;
+  return `${Math.floor(hrs / 24)} hari lalu`;
+}
+
+const NOTIF_ICON: Record<string, string> = {
+  transaction: "recycling",
+  reward: "redeem",
+  chat: "chat",
+};
+
+export async function getNotifications(): Promise<AppNotification[]> {
+  const res = await apiFetch(`${API_URL}/notifications`, { headers: authHeaders() });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const items = Array.isArray(data) ? data : (data.data ?? []);
+  const today = new Date().toDateString();
+  return (items as Record<string, unknown>[]).map((n) => {
+    const createdAt = (n.created_at as string | undefined) ?? "";
+    const notifDate = createdAt ? new Date(createdAt).toDateString() : today;
+    return {
+      id: String(n.id ?? Math.random()),
+      iconKey: NOTIF_ICON[(n.reference_type as string) ?? ""] ?? "notifications",
+      title: String(n.title ?? "Notifikasi"),
+      body: String(n.message ?? n.body ?? ""),
+      timeAgo: createdAt ? notifTimeAgo(createdAt) : "Baru saja",
+      group: (notifDate === today ? "Terbaru" : "Kemarin") as AppNotification["group"],
+      read: Boolean(n.is_read),
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// SCAN QR (user side)
+// ---------------------------------------------------------------------------
+
+export interface ScanQrResult {
+  pointsEarned: number;
+  totalPoints: number;
+  message: string;
+}
+
+export async function scanQr(qrToken: string): Promise<ScanQrResult> {
+  const form = new FormData();
+  form.append("qr_token", qrToken);
+  const res = await apiFetch(`${API_URL}/scan-qr`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Scan QR gagal");
+  }
+  const data = await res.json();
+  const d = (data.data ?? data) as Record<string, unknown>;
+  return {
+    pointsEarned: Number(d.points_earned ?? 0),
+    totalPoints: Number(d.total_points ?? 0),
+    message: String(data.message ?? "QR berhasil dipindai"),
+  };
 }

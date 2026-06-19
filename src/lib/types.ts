@@ -11,24 +11,44 @@ export interface User {
   phone: string;
   address: string;
   avatarUrl: string | null;
-  pointBalance: number; // saldo poin
-  greenLevel: string; // mis. "Level 4: Green Hero"
+  pointBalance: number;
+  greenLevel: string;
   co2SavedKg: number;
+  role: string; // "admin" | "user"
 }
 
-export type TxStatus = "success" | "pending" | "failed";
+export type TxStatus = "success" | "pending" | "failed" | "process" | "completed" | "rejected" | "dikemas" | "pengiriman" | "selesai";
 export type TxType = "deposit" | "redeem";
+export type ShippingStatus = "diproses" | "dikirim" | "sampai";
 
 export interface Transaction {
-  id: string; // mis. "TRX-9920110"
-  date: string; // ISO date
-  timeLabel: string; // mis. "14:20 WIB"
-  category: string; // mis. "Plastik PET"
-  iconKey: string; // material symbol key
-  weightKg: number | null;
-  points: number | null; // null untuk pending
+  id: string;
+  date: string;
+  timeLabel: string;
+  category: string;
+  iconKey: string;
+  weightGram: number | null;
+  points: number | null;
   status: TxStatus;
   type: TxType;
+  // setoran-only
+  locationName?: string;
+  photoPath?: string;
+  rejectionReason?: string | null;
+  aiResult?: {
+    confidenceScore: number;
+    detectedCategory: string;
+    result: string;
+    message: string;
+  };
+  qrCode?: string | null;
+  // tukar-only
+  rewardName?: string;
+  productImage?: string;
+  qty?: number;
+  pointPerItem?: number;
+  totalPoints?: number;
+  shippingStatus?: ShippingStatus;
 }
 
 export interface Reward {
@@ -36,10 +56,11 @@ export interface Reward {
   name: string;
   description: string;
   pointCost: number;
-  category: string; // Accessories | Apparel | Eco-Home
+  category: string;
   stock: number;
   stockMax: number;
-  badge: string | null; // "Best Seller" | "Limited" | null
+  badge: string | null;
+  image?: string | null;
 }
 
 export interface DropLocation {
@@ -48,26 +69,32 @@ export interface DropLocation {
   address: string;
   distanceKm: number;
   isOpen: boolean;
-  openInfo: string; // mis. "Open until 20:00"
+  isFull: boolean;
+  openInfo: string;
   visitorsToday: number;
-  // koordinat relatif (0-100) untuk simulasi peta; ganti dgn lat/lng asli nanti
-  mapX: number;
-  mapY: number;
+  lat: number;
+  lng: number;
 }
 
 export interface ScanResult {
   depositorName: string;
   locationName: string;
   productName: string;
-  category: string; // mis. "Anorganik"
-  tags: string[]; // mis. ["Plastik", "Botol Minuman", "Grade A"]
-  confidence: number; // 0-100
+  category: string;
+  tags: string[];
+  confidence: number;
+  estimatedWeight?: number;
+  estimatedPoint?: number;
+  imagePath?: string;
+  categoryId?: number | string;
+  locationId?: number | string;
+  message?: string;
 }
 
 export interface DashboardData {
-  pointBalance: number;
   recentTransactions: Transaction[];
   popularRewards: Reward[];
+  totalWaste: number;
 }
 
 export type ChatSender = "bot" | "agent" | "user";

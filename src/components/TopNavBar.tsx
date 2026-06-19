@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./ui/Icon";
+import { useEcho } from "@/context/EchoContext";
 
 const NAV = [
   { href: "/dashboard", label: "Home" },
   { href: "/locations", label: "Locations" },
+  { href: "/scanner", label: "Setor" },
   { href: "/history", label: "Transactions" },
   { href: "/rewards", label: "Rewards" },
   { href: "/settings", label: "Settings" },
@@ -14,6 +16,7 @@ const NAV = [
 
 export default function TopNavBar() {
   const pathname = usePathname();
+  const { unreadCount } = useEcho();
   return (
     <header className="sticky top-0 z-50 w-full bg-surface border-b border-surface-variant">
       <div className="flex justify-between items-center w-full px-container-padding-mobile md:px-container-padding-desktop py-4 max-w-[1280px] mx-auto">
@@ -45,18 +48,14 @@ export default function TopNavBar() {
         </div>
         <div className="flex items-center gap-4">
           <Link
-            href="/customer-service"
-            className="p-2 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors"
-            aria-label="Customer Service"
-          >
-            <Icon name="headset_mic" />
-          </Link>
-          <Link
             href="/notifications"
-            className="p-2 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors"
+            className="p-2 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors relative"
             aria-label="Notifikasi"
           >
             <Icon name="notifications" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-error border border-surface" />
+            )}
           </Link>
           <Link
             href="/settings"

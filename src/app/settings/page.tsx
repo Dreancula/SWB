@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/ui/Toast";
 
 const SETTINGS = [
   {
@@ -12,107 +14,118 @@ const SETTINGS = [
     title: "Keamanan",
     desc: "Otentikasi dua faktor & ubah PIN transaksi.",
     cta: "Kelola",
+    href: null,
   },
   {
     icon: "notifications",
     title: "Notifikasi",
     desc: "Atur peringatan saldo dan laporan hijau mingguan.",
     cta: "Kelola",
+    href: null,
   },
   {
     icon: "language",
     title: "Bahasa",
     desc: "Indonesia",
     cta: "Ubah",
+    href: null,
   },
   {
-    icon: "help",
-    title: "Bantuan",
-    desc: "Pusat bantuan 24/7 dan pertanyaan umum.",
-    cta: "Buka Chat",
+    icon: "info",
+    title: "Tentang",
+    desc: "Petunjuk penggunaan, FAQ, dan info aplikasi.",
+    cta: "Lihat",
+    href: "/tentang",
   },
 ];
 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { toast, showToast } = useToast();
   const [confirmLogout, setConfirmLogout] = useState(false);
 
-  const name = user?.fullName ?? "Budi Santoso";
+  const name = user?.fullName ?? "";
   const level = user?.greenLevel ?? "Level 4: Green Hero";
   const co2 = user?.co2SavedKg ?? 12;
 
   async function handleLogout() {
-    await logout();
-    router.push("/");
+    try {
+      await logout();
+      router.push("/");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Logout gagal", "error");
+    }
   }
 
   return (
     <AppShell>
-      <div className="max-w-[1280px] mx-auto px-container-padding-mobile md:px-container-padding-desktop py-stack-lg space-y-stack-lg">
+      {toast && <Toast {...toast} />}
+      <div className="max-w-[1280px] mx-auto px-4 md:px-container-padding-desktop py-4 md:py-stack-lg space-y-4 md:space-y-stack-lg">
         <section>
-          <h1 className="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-on-surface mb-base">
+          <h1 className="text-xl md:text-headline-lg font-headline-lg text-on-surface mb-1">
             Pengaturan Akun
           </h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant">
+          <p className="hidden md:block font-body-lg text-body-lg text-on-surface-variant">
             Kelola profil Anda dan pantau dampak ekologis bersama Smart Eco Bank.
           </p>
         </section>
 
         {/* Profile */}
-        <div className="glass-card rounded-xl p-stack-md flex items-center gap-stack-md">
-          <div className="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
-            <Icon name="person" fill style={{ fontSize: 32 }} />
+        <div className="glass-card rounded-xl p-3 md:p-stack-md flex items-center gap-3 md:gap-stack-md">
+          <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container shrink-0">
+            <Icon name="person" fill style={{ fontSize: 28 }} />
           </div>
-          <div className="flex-grow">
-            <p className="font-body-md font-bold text-on-surface text-lg">
+          <div className="flex-grow min-w-0">
+            <p className="font-body-md font-bold text-on-surface text-base md:text-lg truncate">
               {name}
             </p>
-            <p className="font-label-sm text-label-sm text-on-surface-variant">
+            <p className="font-label-sm text-label-sm text-on-surface-variant truncate">
               {user?.email ?? "budi@email.com"} · Active Saver
             </p>
           </div>
-          <button className="py-2 px-4 bg-primary-container text-on-primary-container font-button text-button rounded-lg hover:brightness-95 transition-all">
+          <button className="py-1.5 px-3 md:py-2 md:px-4 bg-primary-container text-on-primary-container font-button text-sm rounded-lg hover:brightness-95 transition-all shrink-0">
             Ubah Profil
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-gutter">
           {/* Settings grid */}
-          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-stack-md content-start">
+          <div className="md:col-span-2 grid grid-cols-2 gap-3 md:gap-stack-md content-start">
             {SETTINGS.map((s) => (
               <div
                 key={s.title}
-                className="glass-card p-stack-md rounded-xl hover:shadow-md transition-shadow cursor-pointer group"
+                onClick={() => s.href && router.push(s.href)}
+                className={`glass-card p-3 md:p-stack-md rounded-xl hover:shadow-md transition-shadow group ${s.href ? "cursor-pointer" : "cursor-default"}`}
               >
-                <div className="w-12 h-12 bg-primary/10 text-primary rounded-lg flex items-center justify-center mb-stack-sm group-hover:bg-primary group-hover:text-white transition-colors">
-                  <Icon name={s.icon} />
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 text-primary rounded-lg flex items-center justify-center mb-2 md:mb-stack-sm group-hover:bg-primary group-hover:text-white transition-colors">
+                  <Icon name={s.icon} className="text-[20px] md:text-[24px]" />
                 </div>
-                <h3 className="font-headline-md text-body-md font-bold mb-base">
+                <h3 className="font-bold text-sm md:text-body-md mb-1">
                   {s.title}
                 </h3>
-                <p className="font-label-sm text-on-surface-variant mb-stack-md">
+                <p className="text-xs md:text-label-sm text-on-surface-variant mb-2 md:mb-stack-md line-clamp-2">
                   {s.desc}
                 </p>
-                <span className="text-primary font-button text-sm flex items-center gap-1">
-                  {s.cta} <Icon name="chevron_right" className="text-sm" />
+                <span className="text-primary font-button text-xs md:text-sm flex items-center gap-1">
+                  {s.cta} <Icon name="chevron_right" className="text-xs md:text-sm" />
                 </span>
               </div>
             ))}
 
-            <div className="sm:col-span-2">
+            <div className="col-span-2">
               <button
                 onClick={() => setConfirmLogout(true)}
-                className="flex items-center gap-stack-md p-stack-md w-full rounded-xl text-error border border-error/20 hover:bg-error-container/20 transition-all"
+                className="flex items-center gap-3 p-3 md:p-stack-md w-full rounded-xl text-error border border-error/20 hover:bg-error-container/20 transition-all"
               >
                 <Icon name="logout" />
-                <span className="font-body-md font-bold">Logout</span>
+                <span className="font-body-md font-bold text-sm md:text-base">Logout</span>
               </button>
             </div>
           </div>
 
           {/* Green impact */}
-          <div className="bg-primary text-white p-6 rounded-2xl shadow-xl relative overflow-hidden">
+          <div className="bg-primary text-white p-4 md:p-6 rounded-2xl shadow-xl relative overflow-hidden">
             <div className="absolute -right-8 -top-8 opacity-20 rotate-12">
               <Icon name="eco" fill style={{ fontSize: 160 }} />
             </div>
@@ -128,7 +141,7 @@ export default function SettingsPage() {
                   CO2 Terhemat Bulan Ini
                 </p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-extrabold">{co2}</span>
+                  <span className="text-4xl md:text-5xl font-extrabold">{co2}</span>
                   <span className="text-xl font-bold">kg</span>
                 </div>
               </div>

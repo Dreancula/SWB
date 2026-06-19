@@ -5,8 +5,10 @@ import {
   useContext,
   useState,
   useCallback,
+  useEffect,
   ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import type { User } from "@/lib/types";
 import * as api from "@/lib/api";
 
@@ -14,7 +16,7 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<User | null>;
   register: (payload: {
     fullName: string;
     email: string;
@@ -28,21 +30,36 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.setUnauthorizedHandler(() => {
+      setUser(null);
+      router.push("/");
+    });
+  }, [router]);
+
+  useEffect(() => {
+    const token = api.getStoredToken();
+    if (token && !user) {
+      api.getUser().then(setUser).catch(() => api.setAuthToken(null));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     try {
       const res = await api.login(email, password);
-      api.setAuthToken(res.token);
       setUser(res.user);
-      return true;
+      return res.user;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login gagal");
-      return false;
+      return null;
     } finally {
       setLoading(false);
     }
@@ -60,7 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       try {
         const res = await api.register(payload);
-        api.setAuthToken(res.token);
         setUser(res.user);
         return true;
       } catch (e) {

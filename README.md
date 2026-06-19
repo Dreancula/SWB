@@ -1,101 +1,96 @@
-# Smart Eco Bank — Web (Next.js + TypeScript)
+# Smart Eco Bank (Frontend Web)
 
-Port web/desktop dari mockup HTML **Smart Eco Bank** (W1–W10) ke **Next.js 14 (App Router) + TypeScript + Tailwind CSS**. Mengikuti pola yang sama seperti project Flutter sebelumnya: **semua data masih mock**, ditempatkan persis di titik di mana endpoint API akan dipanggil, lengkap dengan dokumentasi endpoint agar backend tinggal dipasang.
+Aplikasi frontend berbasis **Next.js** untuk sistem Smart Eco Bank. Repositori ini berjalan berdampingan dengan backend Laravel.
 
-## Menjalankan
+## 🚀 Prasyarat
+- **Node.js** (direkomendasikan versi 18 atau ke atas)
+- **npm** (atau `yarn` / `pnpm`)
+- Backend **Laravel Smart Eco Bank** yang sudah berjalan
 
-```bash
-npm install
-npm run dev      # http://localhost:3000
-```
+---
 
-Build produksi:
+## 🛠 Instalasi
 
-```bash
-npm run build && npm start
-```
-
-> Catatan: font (Manrope, JetBrains Mono, Material Symbols) dimuat lewat `<link>`
-> di `src/app/layout.tsx`, jadi butuh koneksi internet saat dijalankan di
-> browser — sama seperti mockup aslinya.
-
-## Struktur
-
-```
-src/
-├── app/                      # Routing (App Router)
-│   ├── layout.tsx            # Root layout + font + AuthProvider
-│   ├── globals.css           # Tailwind + util (eco-gradient, glass, scan-line)
-│   ├── page.tsx              # W1  Landing + Login
-│   ├── register/             # W1  Registrasi
-│   ├── dashboard/            # W2  Beranda
-│   ├── locations/            # W3  Lokasi Posko (peta simulasi)
-│   ├── scanner/              # W4  Setor Sampah AI (upload + hasil)
-│   ├── history/              # W5  Riwayat Transaksi
-│   ├── rewards/              # W6  Katalog Reward
-│   ├── settings/             # W7  Pengaturan + Dampak Hijau
-│   ├── customer-service/     # W9  Chat CS
-│   ├── notifications/        # W8  Notifikasi
-│   └── about/                # W10 Tentang Kami (publik)
-├── components/
-│   ├── AppShell.tsx          # TopNav + Footer + BottomNav (halaman login)
-│   ├── TopNavBar.tsx / BottomNavBar.tsx / Footer.tsx
-│   └── ui/Icon.tsx           # Wrapper Material Symbols
-├── context/
-│   └── AuthContext.tsx       # State login (user, login, register, logout)
-└── lib/
-    ├── types.ts              # Semua interface (bentuk = response API)
-    └── api.ts                # ★ Lapisan API terpusat (mock + dokumentasi)
-```
-
-## Pola Mock → Backend
-
-Semua komunikasi data ada di **`src/lib/api.ts`**. Setiap fungsi punya:
-
-1. Blok `TODO(API)` — spesifikasi endpoint asli (method, path, body, response).
-2. Blok `// REAL:` — contoh `fetch` yang tinggal di-uncomment.
-3. `return mock…` — data palsu yang dipakai sekarang.
-
-Langkah migrasi ke backend asli:
-
-1. Buat `.env.local`:
+1. Buka terminal dan masuk ke folder project ini.
+2. Instal semua *dependency* yang dibutuhkan:
+   ```bash
+   npm install
    ```
-   NEXT_PUBLIC_API_BASE_URL=https://api.domain-anda.com
+3. Pastikan kamu memiliki file `.env` (bisa di-*copy* dari `.env.example` jika ada). Konfigurasi standarnya adalah sebagai berikut:
+   ```env
+   NEXT_PUBLIC_API_BASE_URL="http://localhost:8000"
+   NEXT_PUBLIC_REVERB_APP_KEY=fl9khfsbv4bjyhlodehm
+   NEXT_PUBLIC_REVERB_HOST="localhost"
+   NEXT_PUBLIC_REVERB_PORT=8080
+   NEXT_PUBLIC_REVERB_SCHEME=http
    ```
-2. Setelah login, token disimpan via `setAuthToken()` (sudah otomatis di `AuthContext`).
-3. Uncomment blok `// REAL:` pada fungsi terkait, hapus baris `return mock…`.
-4. Tidak perlu ubah komponen — response sudah diketik lewat `types.ts`.
 
-### Endpoint yang sudah didokumentasikan
+---
 
-| Fungsi (`api.ts`)      | Endpoint                          | Layar |
-| ---------------------- | --------------------------------- | ----- |
-| `login`                | POST `/auth/login`                | W1    |
-| `register`             | POST `/auth/register`             | W1    |
-| `logout`               | POST `/auth/logout`               | W7    |
-| `getDashboard`         | GET `/dashboard`                  | W2    |
-| `getLocations`         | GET `/locations?q=`               | W3    |
-| `analyzeWaste`         | POST `/waste/analyze` (multipart) | W4    |
-| `submitDeposit`        | POST `/deposits`                  | W4    |
-| `getTransactions`      | GET `/transactions?type=`         | W5    |
-| `getRewards`           | GET `/rewards?category=`          | W6    |
-| `redeemReward`         | POST `/rewards/{id}/redeem`       | W6    |
-| `getNotifications`     | GET `/notifications`              | W8    |
-| `sendSupportMessage`   | POST `/support/messages`          | W9    |
+## 💻 Cara Menjalankan (Testing di Laptop Saja)
 
-## Aturan poin
+Jika kamu hanya ingin melakukan testing di laptop:
 
-`1.000 gram = 2 poin` (0,002 poin/gram) — lihat `estimatePoints()` di `api.ts`,
-dipakai live di layar scanner (W4).
+1. Pastikan server backend Laravel sudah menyala (`php artisan serve`).
+2. Jalankan server *development* Next.js:
+   ```bash
+   npm run dev
+   ```
+3. Buka browser dan akses: `http://localhost:3000`
 
-## Login demo
+---
 
-Email `budi@email.com` / password `password` (mock menerima kredensial apa pun).
+## 📱 PANDUAN TESTING DI HP (Wajib Dibaca)
 
-## Design system
+Seringkali kita perlu melakukan testing langsung di HP (terutama untuk fitur kamera/scanner, dan melihat *responsive* UI). Agar HP bisa mengakses server lokal yang ada di laptopmu, **Laptop dan HP harus terhubung ke jaringan WiFi atau Hotspot yang sama**.
 
-Token Material 3 (warna, radius, spacing, type scale Manrope/JetBrains Mono)
-diport persis dari konfigurasi Tailwind di mockup, ada di `tailwind.config.ts`.
+Ikuti langkah-langkah di bawah ini:
 
-> Gambar/foto eksternal pada mockup diganti placeholder `eco-gradient` + ikon
-> agar project mandiri tanpa link yang mati. Ganti dengan aset asli bila perlu.
+### 1. Cari Local IP Address Laptopmu
+Buka terminal laptop dan jalankan perintah:
+- **Linux/Mac**: `ip addr show` atau `ifconfig`
+- **Windows**: `ipconfig`
+
+Cari *IPv4 Address* dari jaringan WiFi/Hotspot-mu. Contoh bentuknya: `192.168.1.9` atau `192.168.43.37`.
+
+### 2. Ubah Konfigurasi `.env`
+HP tidak mengerti apa itu `localhost` (karena HP akan menganggap *localhost* adalah dirinya sendiri). Kamu wajib mengubah `localhost` menjadi **IP Address Laptopmu** di file `.env`:
+
+```env
+NEXT_PUBLIC_API_BASE_URL="http://192.168.43.37:8000"
+NEXT_PUBLIC_REVERB_HOST="192.168.43.37"
+```
+*(Ganti `192.168.43.37` dengan IP Address aslimu).*
+
+### 3. Jalankan Backend (Laravel) dengan Host 0.0.0.0
+Buka terminal di project Backend Laravel, dan jalankan perintah ini agar backend mau menerima koneksi dari luar (HP):
+```bash
+php artisan serve --host=0.0.0.0 --port=8000
+```
+*(Jika kamu mengetes fitur Real-Time/Websocket, matikan Reverb dan jalankan ulang dengan: `php artisan reverb:start --host=0.0.0.0 --port=8080`)*
+
+### 4. Jalankan Frontend (Next.js) dengan Host 0.0.0.0
+Buka terminal di project Frontend (Next.js) ini, dan jalankan:
+```bash
+npm run dev -- -H 0.0.0.0
+```
+
+### 5. Akses Melalui HP
+Buka Chrome/Safari di HP kamu, dan **ketik URL secara manual dan lengkap menggunakan `http://`** (jangan sampai kurang, agar browser tidak memaksanya menjadi HTTPS):
+```text
+http://192.168.43.37:3000
+```
+
+> **Troubleshooting / Masalah Sering Terjadi:**
+> - **Loading terus di HP?** Kemungkinan *Firewall* di laptop (seperti Windows Defender atau `ufw` di Ubuntu) memblokir port 3000 atau 8000. Coba izinkan *port* tersebut di pengaturan firewall laptop. Di Linux jalankan: `sudo ufw allow 3000/tcp` dan `sudo ufw allow 8000/tcp`.
+> - **Error Network?** Pastikan laptop dan HP benar-benar di WiFi/Hotspot yang sama. Jika IP laptop berubah, kamu wajib mengubah isi `.env` lagi.
+> - **File gambar/foto dari HP terlalu besar?** Jangan khawatir, frontend project ini sudah dilengkapi fitur *auto compress image* menggunakan *Canvas* secara lokal sebelum dikirim ke backend untuk mencegah PHP Error `UPLOAD_ERR_INI_SIZE`.
+
+---
+
+## 📦 Teknologi yang Digunakan
+- **Next.js** (App Router)
+- **React**
+- **Tailwind CSS v4**
+- **Laravel Echo & Pusher JS** (Untuk Websocket Reverb)
+- **MapLibre GL** (Integrasi Maps)

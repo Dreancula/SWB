@@ -5,17 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { useAuth } from "@/context/AuthContext";
-import Image from "next/image";
 
 export default function LandingLoginPage() {
   const router = useRouter();
   const { login, loading, error } = useAuth();
-  const [email, setEmail] = useState("budi@email.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   async function handleSubmit() {
-    const ok = await login(email, password);
-    if (ok) router.push("/dashboard");
+    const user = await login(email, password);
+    if (user) router.push(user.role === "admin" ? "/admin/verification" : "/dashboard");
   }
 
   return (
@@ -129,7 +128,7 @@ export default function LandingLoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none"
-                    placeholder="budi@email.com"
+                    placeholder="email@example.com"
                   />
                 </div>
               </div>
@@ -167,42 +166,6 @@ export default function LandingLoginPage() {
                   className="group-hover:translate-x-1 transition-transform"
                 />
               </button>
-
-              <div className="relative py-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-outline-variant" />
-                </div>
-                <div className="relative flex justify-center text-label-sm">
-                  <span className="px-2 bg-white text-outline">
-                    ATAU MASUK DENGAN
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-stack-md">
-                <button className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors">
-                  <span className="text-label-sm font-label-sm flex items-center gap-2">
-                    <Image
-                      src={"/images/google-icon.png"}
-                      alt="Google"
-                      width={24}
-                      height={24}
-                    />
-                    Google
-                  </span>
-                </button>
-                <button className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors">
-                  <span className="text-label-sm font-label-sm flex items-center gap-2">
-                    <Image
-                      src={"/images/facebook-icon.png"}
-                      alt="Facebook"
-                      width={24}
-                      height={24}
-                    />
-                    Facebook
-                  </span>
-                </button>
-              </div>
 
               <p className="text-center text-body-md font-body-md text-on-surface-variant pt-4">
                 Belum punya akun?{" "}

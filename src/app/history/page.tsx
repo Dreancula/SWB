@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
 import { getTransactions } from "@/lib/api";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/ui/Toast";
 import type { Transaction } from "@/lib/types";
 
 const FILTERS = [
@@ -12,30 +15,45 @@ const FILTERS = [
   { key: "redeem", label: "Tukar" },
 ] as const;
 
+function navigateToDetail(router: ReturnType<typeof useRouter>, t: Transaction) {
+  try {
+    sessionStorage.setItem(`eco_tx_${t.id}`, JSON.stringify(t));
+  } catch { }
+  router.push(`/history/${t.id}`);
+}
+
 export default function HistoryPage() {
+  const router = useRouter();
+  const { toast, showToast } = useToast();
   const [filter, setFilter] = useState<"all" | "deposit" | "redeem">("all");
   const [txs, setTxs] = useState<Transaction[]>([]);
+  const [totalPoint, setTotalPoint] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    getTransactions(filter).then((data) => {
-      setTxs(data);
-      setLoading(false);
-    });
-  }, [filter]);
-
-  const totalPoints = txs.reduce((sum, t) => sum + (t.points ?? 0), 0);
+    getTransactions(filter)
+      .then(({ transactions, totalPoint: tp }) => {
+        setTxs(transactions);
+        if (filter === "all") setTotalPoint(tp);
+        setLoading(false);
+      })
+      .catch((e) => {
+        showToast(e instanceof Error ? e.message : "Gagal memuat riwayat", "error");
+        setLoading(false);
+      });
+  }, [filter, showToast]);
 
   return (
     <AppShell>
-      <div className="max-w-[1280px] mx-auto px-container-padding-mobile md:px-container-padding-desktop py-stack-lg">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-stack-md mb-stack-lg">
+      {toast && <Toast {...toast} />}
+      <div className="max-w-[1280px] mx-auto px-4 md:px-container-padding-desktop py-4 md:py-stack-lg">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-4 md:mb-stack-lg">
           <div>
-            <h1 className="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-primary mb-2">
+            <h1 className="text-xl md:text-headline-lg font-headline-lg text-primary mb-1">
               Riwayat Transaksi
             </h1>
-            <p className="text-body-md text-on-surface-variant max-w-2xl">
+            <p className="hidden md:block text-body-md text-on-surface-variant max-w-2xl">
               Pantau kontribusi ekologis Anda. Setiap kilogram sampah tervalidasi
               dikonversi menjadi poin loyalitas hijau.
             </p>
@@ -69,13 +87,46 @@ export default function HistoryPage() {
           ))}
         </div>
 
-        {/* Table */}
-        <div className="bg-surface-container-lowest rounded-xl border border-surface-variant overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.02)]">
+        {/* Mobile card list */}
+        {!loading && txs.length > 0 && (
+          <div className="md:hidden space-y-3 mb-4">
+            {txs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => navigateToDetail(router, t)}
+                className="w-full text-left bg-surface border border-outline-variant rounded-xl p-4 hover:border-primary/40 hover:shadow-sm transition-all active:scale-[0.99] flex items-center gap-3"
+              >
+                <div className="w-10 h-10 rounded-full bg-primary-container/20 text-primary flex items-center justify-center shrink-0">
+                  <Icon name={t.iconKey} fill />
+                </div>
+                <div className="flex-grow min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className="font-bold text-on-surface text-sm truncate">{t.category}</span>
+                    <StatusBadge status={t.status} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-label-sm text-on-surface-variant">{t.date} · {t.timeLabel}</span>
+                    {t.points && (
+                      <span className="text-primary font-bold text-sm shrink-0">
+                        {t.points > 0 ? "+" : ""}{t.points.toLocaleString("id-ID")} Pts
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-label-sm text-outline font-label-sm">#{t.id}</span>
+                </div>
+                <Icon name="chevron_right" className="text-on-surface-variant shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Table (desktop only) */}
+        <div className="hidden md:block bg-surface-container-lowest rounded-xl border border-surface-variant overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.02)]">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low text-on-surface-variant border-b border-surface-variant">
-                  {["Tanggal", "ID Transaksi", "Kategori", "Berat", "Poin", "Status"].map(
+                  {["Tanggal", "ID Transaksi", "Kategori", "Berat", "Poin", "Status", ""].map(
                     (h) => (
                       <th
                         key={h}
@@ -91,7 +142,7 @@ export default function HistoryPage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-6 py-12 text-center text-on-surface-variant"
                     >
                       Memuat transaksi…
@@ -100,7 +151,7 @@ export default function HistoryPage() {
                 ) : txs.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-6 py-12 text-center text-on-surface-variant"
                     >
                       Belum ada transaksi untuk filter ini.
@@ -110,7 +161,8 @@ export default function HistoryPage() {
                   txs.map((t) => (
                     <tr
                       key={t.id}
-                      className="hover:bg-surface-container-low transition-colors"
+                      onClick={() => navigateToDetail(router, t)}
+                      className="hover:bg-surface-container-low transition-colors cursor-pointer"
                     >
                       <td className="px-6 py-5">
                         <div className="flex flex-col">
@@ -130,11 +182,10 @@ export default function HistoryPage() {
                         </div>
                       </td>
                       <td className="px-6 py-5 font-headline-md text-primary">
-                        {t.weightKg ?? "—"}
-                        {t.weightKg && (
+                        {t.weightGram != null ? t.weightGram : "—"}
+                        {t.weightGram != null && (
                           <span className="text-label-sm font-normal text-on-surface-variant">
-                            {" "}
-                            kg
+                            {" "}g
                           </span>
                         )}
                       </td>
@@ -145,6 +196,9 @@ export default function HistoryPage() {
                       </td>
                       <td className="px-6 py-5">
                         <StatusBadge status={t.status} />
+                      </td>
+                      <td className="px-4 py-5 text-on-surface-variant">
+                        <Icon name="chevron_right" />
                       </td>
                     </tr>
                   ))
@@ -177,7 +231,7 @@ export default function HistoryPage() {
               Total Poin Terkumpul
             </h3>
             <div className="text-headline-lg font-headline-lg text-primary">
-              {totalPoints.toLocaleString("id-ID")} Pts
+              {totalPoint.toLocaleString("id-ID")} Pts
             </div>
             <p className="text-label-sm text-on-surface-variant mt-2">
               Tukarkan dengan voucher listrik atau diskon eco-store.
@@ -232,8 +286,8 @@ export default function HistoryPage() {
   );
 }
 
-function StatusBadge({ status }: { status: "success" | "pending" | "failed" }) {
-  if (status === "success")
+function StatusBadge({ status }: { status: import("@/lib/types").TxStatus }) {
+  if (status === "success" || status === "completed" || status === "selesai")
     return (
       <span className="px-3 py-1 bg-[#d1e7dd] text-[#0f5132] rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
         <Icon name="check_circle" className="text-[14px]" /> Sukses
@@ -242,7 +296,15 @@ function StatusBadge({ status }: { status: "success" | "pending" | "failed" }) {
   if (status === "pending")
     return (
       <span className="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
-        <Icon name="pending" className="text-[14px]" /> Menunggu Validasi
+        <Icon name="pending" className="text-[14px]" />
+        <span className="hidden sm:inline">Menunggu Validasi</span>
+        <span className="sm:hidden">Menunggu</span>
+      </span>
+    );
+  if (status === "process" || status === "dikemas" || status === "pengiriman")
+    return (
+      <span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
+        <Icon name="autorenew" className="text-[14px]" /> Diproses
       </span>
     );
   return (
