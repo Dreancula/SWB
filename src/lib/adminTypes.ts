@@ -48,6 +48,7 @@ export interface AdminUser {
   phone: string;
   address: string;
   points: number;
+  role: "admin" | "user";
   isActive: boolean;
   createdAt: string;
 }

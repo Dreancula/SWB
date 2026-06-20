@@ -131,18 +131,20 @@ function PointsModal({
   onSave: (newPoints: number) => void;
 }) {
   const { t } = useTranslation();
-  const [amount, setAmount] = useState(0);
-  const [reason, setReason] = useState("");
+  const [points, setPoints] = useState(0);
+  const [action, setAction] = useState<"add" | "subtract">("add");
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSave() {
-    if (amount === 0) return;
+    if (points <= 0) return;
     setSaving(true);
     setError("");
     try {
-      await adjustUserPoints(user.id, amount, reason);
-      onSave(user.points + amount);
+      await adjustUserPoints(user.id, points, action, description);
+      const newTotal = action === "add" ? user.points + points : user.points - points;
+      onSave(newTotal);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("admin.users.adjustFailed"));
     } finally {
@@ -150,38 +152,73 @@ function PointsModal({
     }
   }
 
-  const preview = user.points + amount;
+  const preview = action === "add" ? user.points + points : user.points - points;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
       <div className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
         <div className="bg-secondary p-5">
           <h3 className="font-bold text-on-secondary text-lg">{t("admin.users.adjustPointsTitle")}</h3>
-          <p className="text-on-secondary/80 text-xs mt-0.5">{user.fullName} · {user.points.toLocaleString("id-ID")} pts saat ini</p>
+          <p className="text-on-secondary/80 text-xs mt-0.5">{user.fullName} · {user.points.toLocaleString("id-ID")} pts</p>
         </div>
         <div className="p-6 space-y-4">
+
+          {/* Action toggle */}
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-outline uppercase">{t("admin.users.adjustActionLabel")}</label>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setAction("add")}
+                className={`py-2.5 rounded-xl font-button text-sm flex items-center justify-center gap-1.5 border transition-colors ${
+                  action === "add"
+                    ? "bg-primary text-on-primary border-primary"
+                    : "border-outline text-on-surface hover:bg-surface-variant"
+                }`}
+              >
+                <Icon name="add_circle" style={{ fontSize: 16 }} />
+                {t("admin.users.adjustActionAdd")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAction("subtract")}
+                className={`py-2.5 rounded-xl font-button text-sm flex items-center justify-center gap-1.5 border transition-colors ${
+                  action === "subtract"
+                    ? "bg-error text-on-error border-error"
+                    : "border-outline text-on-surface hover:bg-surface-variant"
+                }`}
+              >
+                <Icon name="remove_circle" style={{ fontSize: 16 }} />
+                {t("admin.users.adjustActionSubtract")}
+              </button>
+            </div>
+          </div>
+
+          {/* Points amount */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-outline uppercase">{t("admin.users.adjustPointsLabel")}</label>
-            <p className="text-[10px] text-on-surface-variant">{t("admin.users.adjustPointsHint")}</p>
             <input
               type="number"
-              value={amount}
-              onChange={(e) => setAmount(parseInt(e.target.value) || 0)}
+              min={1}
+              value={points === 0 ? "" : points}
+              onChange={(e) => setPoints(Math.max(0, parseInt(e.target.value) || 0))}
               className="w-full p-3 rounded-xl border border-outline bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm font-mono"
             />
           </div>
+
+          {/* Description */}
           <div className="space-y-1">
-            <label className="text-xs font-bold text-outline uppercase">{t("admin.users.adjustReasonLabel")}</label>
+            <label className="text-xs font-bold text-outline uppercase">{t("admin.users.adjustDescLabel")}</label>
             <input
               type="text"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Contoh: Koreksi transaksi #123"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t("admin.users.adjustDescPlaceholder")}
               className="w-full p-3 rounded-xl border border-outline bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
             />
           </div>
 
-          {amount !== 0 && (
+          {points > 0 && (
             <div className={`flex items-center justify-between p-3 rounded-xl ${preview < 0 ? "bg-error-container/30" : "bg-primary-container/20"}`}>
               <span className="text-xs font-bold text-outline uppercase">{t("admin.users.adjustPreview")}</span>
               <span className={`font-bold text-lg ${preview < 0 ? "text-error" : "text-primary"}`}>
@@ -200,7 +237,7 @@ function PointsModal({
             </button>
             <button
               onClick={handleSave}
-              disabled={amount === 0 || saving}
+              disabled={points <= 0 || saving}
               className="flex-1 py-3 bg-secondary text-on-secondary rounded-xl font-button text-sm hover:brightness-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {saving && <Icon name="sync" className="animate-spin" style={{ fontSize: 16 }} />}
@@ -492,22 +529,32 @@ export default function AdminUsersPage() {
                       <p className="text-xs text-outline truncate">{user.email}</p>
                     </div>
                   </div>
-                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    user.isActive
-                      ? "bg-[#d1e7dd] text-[#0f5132]"
-                      : "bg-error-container/30 text-error"
-                  }`}>
-                    {user.isActive ? t("admin.users.statusActive") : t("admin.users.statusSuspended")}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-0.5 ${
+                      user.role === "admin"
+                        ? "bg-primary-container/40 text-primary"
+                        : "bg-surface-variant text-on-surface-variant"
+                    }`}>
+                      <Icon name={user.role === "admin" ? "admin_panel_settings" : "person"} fill style={{ fontSize: 10 }} />
+                      {user.role === "admin" ? t("admin.users.roleAdmin") : t("admin.users.roleUser")}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      user.isActive
+                        ? "bg-[#d1e7dd] text-[#0f5132]"
+                        : "bg-error-container/30 text-error"
+                    }`}>
+                      {user.isActive ? t("admin.users.statusActive") : t("admin.users.statusSuspended")}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <p className="text-outline font-bold uppercase tracking-wide text-[10px]">Telepon</p>
+                    <p className="text-outline font-bold uppercase tracking-wide text-[10px]">{t("admin.users.tablePhone")}</p>
                     <p className="text-on-surface">{user.phone || "—"}</p>
                   </div>
                   <div>
-                    <p className="text-outline font-bold uppercase tracking-wide text-[10px]">Poin</p>
+                    <p className="text-outline font-bold uppercase tracking-wide text-[10px]">{t("admin.users.tablePoints")}</p>
                     <p className="text-primary font-bold">{user.points.toLocaleString("id-ID")}</p>
                   </div>
                 </div>
@@ -519,12 +566,14 @@ export default function AdminUsersPage() {
                   >
                     <Icon name="edit" style={{ fontSize: 14 }} /> Edit
                   </button>
-                  <button
-                    onClick={() => setPointsUser(user)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold hover:brightness-95 transition-colors"
-                  >
-                    <Icon name="toll" style={{ fontSize: 14 }} /> Poin
-                  </button>
+                  {user.role !== "admin" && (
+                    <button
+                      onClick={() => setPointsUser(user)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold hover:brightness-95 transition-colors"
+                    >
+                      <Icon name="toll" style={{ fontSize: 14 }} /> Poin
+                    </button>
+                  )}
                   <button
                     onClick={() => handleSuspend(user)}
                     disabled={suspending === user.id}
@@ -552,6 +601,7 @@ export default function AdminUsersPage() {
                   {[
                     { key: "User", label: t("admin.users.tableName") },
                     { key: "Kontak", label: t("admin.users.tablePhone") },
+                    { key: "Role", label: t("admin.users.tableRole") },
                     { key: "Poin", label: t("admin.users.tablePoints") },
                     { key: "Status", label: t("admin.users.tableStatus") },
                     { key: "Aksi", label: t("admin.users.tableActions") },
@@ -565,13 +615,13 @@ export default function AdminUsersPage() {
               <tbody className="divide-y divide-surface-variant">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant">
+                    <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">
                       {t("admin.users.loading")}
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-16 text-center text-on-surface-variant">
+                    <td colSpan={6} className="px-6 py-16 text-center text-on-surface-variant">
                       <Icon name="group" style={{ fontSize: 48 }} className="opacity-30 mb-2" />
                       <p>{t("admin.users.noUsers")}</p>
                     </td>
@@ -596,6 +646,16 @@ export default function AdminUsersPage() {
                       <p className="text-xs text-outline truncate max-w-[180px]">{user.address || "—"}</p>
                     </td>
                     <td className="px-5 py-4">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                        user.role === "admin"
+                          ? "bg-primary-container/40 text-primary"
+                          : "bg-surface-variant text-on-surface-variant"
+                      }`}>
+                        <Icon name={user.role === "admin" ? "admin_panel_settings" : "person"} fill style={{ fontSize: 12 }} />
+                        {user.role === "admin" ? t("admin.users.roleAdmin") : t("admin.users.roleUser")}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
                       <span className="font-bold text-primary">{user.points.toLocaleString("id-ID")}</span>
                       <span className="text-xs text-outline ml-1">pts</span>
                     </td>
@@ -618,13 +678,15 @@ export default function AdminUsersPage() {
                         >
                           <Icon name="edit" style={{ fontSize: 16 }} className="text-on-surface-variant" />
                         </button>
-                        <button
-                          onClick={() => setPointsUser(user)}
-                          className="p-2 rounded-lg hover:bg-secondary-container transition-colors"
-                          title="Sesuaikan poin"
-                        >
-                          <Icon name="toll" style={{ fontSize: 16 }} className="text-secondary" />
-                        </button>
+                        {user.role !== "admin" && (
+                          <button
+                            onClick={() => setPointsUser(user)}
+                            className="p-2 rounded-lg hover:bg-secondary-container transition-colors"
+                            title="Sesuaikan poin"
+                          >
+                            <Icon name="toll" style={{ fontSize: 16 }} className="text-secondary" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleSuspend(user)}
                           disabled={suspending === user.id}

@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = api.getStoredToken();
     if (token && !user) {
-      api.getUser().then(setUser).catch(() => api.setAuthToken(null));
+      api.getUser().then(setUser).catch(console.error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

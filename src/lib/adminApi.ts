@@ -215,6 +215,7 @@ export async function createAdminUser(payload: {
     phone: String(u.phone ?? ""),
     address: String(u.address ?? ""),
     points: Number(u.points ?? 0),
+    role: ((u.role as string) === "admin" ? "admin" : "user") as "admin" | "user",
     isActive: u.is_active !== false && u.is_active !== 0,
     createdAt: String(u.created_at ?? ""),
   };
@@ -237,7 +238,8 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
     phone: String(u.phone ?? ""),
     address: String(u.address ?? ""),
     points: Number(u.points ?? u.total_points ?? 0),
-    isActive: u.is_active !== false && u.is_active !== 0,
+    role: ((u.role as string) === "admin" ? "admin" : "user") as "admin" | "user",
+    isActive: !u.is_suspended && u.is_active !== false && u.is_active !== 0,
     createdAt: String(u.created_at ?? ""),
   }));
 }
@@ -274,13 +276,14 @@ export async function suspendAdminUser(id: string): Promise<void> {
 
 export async function adjustUserPoints(
   userId: string,
-  amount: number,
-  reason: string,
+  points: number,
+  action: "add" | "subtract",
+  description: string,
 ): Promise<void> {
   const res = await fetch(`${API_URL}/admin/points/adjust`, {
     method: "POST",
     headers: { ...authHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId, amount, reason }),
+    body: JSON.stringify({ user_id: userId, points, action, description }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
