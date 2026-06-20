@@ -66,11 +66,12 @@ function mapUser(u: Record<string, unknown>): User {
     email: (u.email ?? "") as string,
     phone: (u.phone ?? "") as string,
     address: (u.address ?? "") as string,
-    avatarUrl: (u.avatar_url ?? u.avatarUrl ?? null) as string | null,
+    avatarUrl: (u.photo_url ?? u.avatar_url ?? u.avatarUrl ?? null) as string | null,
     pointBalance: Number(u.total_points ?? u.point_balance ?? u.pointBalance ?? 0),
     greenLevel: (u.green_level ?? u.greenLevel ?? "") as string,
-    co2SavedKg: Number(u.co2_saved_kg ?? u.co2SavedKg ?? 0),
+    totalGramSaved: Number(u.total_gram_saved ?? u.totalGramSaved ?? 0),
     role: (u.role ?? "user") as string,
+    hasPin: Boolean(u.has_pin),
   };
 }
 
@@ -82,7 +83,7 @@ async function apiFetch(
   input: string,
   init?: RequestInit,
 ): Promise<Response> {
-  const res = await fetch(input, init);
+  const res = await fetch(input, { cache: "no-store", ...init });
   if (res.status === 401) {
     setAuthToken(null);
     onUnauthorized?.();
@@ -161,7 +162,16 @@ function mapTransaction(t: Record<string, unknown>): Transaction {
     qty: t.quantity !== undefined ? Number(t.quantity) : t.qty !== undefined ? Number(t.qty) : undefined,
     pointPerItem: t.point_per_item !== undefined ? Number(t.point_per_item) : undefined,
     totalPoints: t.total_points !== undefined ? Number(t.total_points) : undefined,
-    shippingStatus: (t.shipping_status ?? t.shippingStatus) as Transaction["shippingStatus"] | undefined,
+    shippingStatus: type === "redeem"
+      ? ((): Transaction["shippingStatus"] => {
+          const raw = (t.shipping_status ?? t.shippingStatus) as string | undefined;
+          if (raw) return raw as Transaction["shippingStatus"];
+          const s = String(t.status ?? "");
+          if (s === "pengiriman") return "dikirim";
+          if (s === "selesai") return "sampai";
+          return "diproses"; // menunggu / dikemas / process
+        })()
+      : undefined,
   };
 }
 
@@ -175,7 +185,7 @@ function mapReward(r: Record<string, unknown>): Reward {
     stock: Number(r.stock ?? 0),
     stockMax: Number(r.stock_max ?? r.stockMax ?? r.stock ?? 0),
     badge: (r.badge ?? null) as string | null,
-    image: (r.image ?? r.product_image ?? null) as string | null,
+    image: (r.image_url ?? r.imageUrl ?? r.image ?? r.product_image ?? null) as string | null,
   };
 }
 
@@ -497,7 +507,39 @@ export async function getTransactionDetail(
 }
 
 // Not yet in API — no-op placeholder
-export async function confirmDelivery(_id: string): Promise<void> {}
+export interface RewardTrackingItem {
+  status: string;
+  label: string;
+  description: string;
+  date: string;
+  is_completed: boolean;
+}
+
+export async function getRewardOrderDetail(id: string): Promise<{
+  status: string;
+  tracking: RewardTrackingItem[];
+}> {
+  const res = await apiFetch(`${API_URL}/rewards/orders/${id}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Gagal memuat detail pesanan");
+  const raw = await res.json();
+  const d = (raw.data ?? raw) as Record<string, unknown>;
+  const order = (d.order ?? d) as Record<string, unknown>;
+  return {
+    status: String(order.status ?? ""),
+    tracking: Array.isArray(d.tracking) ? (d.tracking as RewardTrackingItem[]) : [],
+  };
+}
+
+export async function confirmDelivery(id: string): Promise<void> {
+  const res = await apiFetch(`${API_URL}/rewards/orders/${id}/confirm`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal mengkonfirmasi penerimaan");
+  }
+}
 
 // ---------------------------------------------------------------------------
 // REWARDS
@@ -655,19 +697,59 @@ export async function getNotifications(): Promise<AppNotification[]> {
   const data = await res.json();
   const items = Array.isArray(data) ? data : (data.data ?? []);
   const today = new Date().toDateString();
-  return (items as Record<string, unknown>[]).map((n) => {
-    const createdAt = (n.created_at as string | undefined) ?? "";
-    const notifDate = createdAt ? new Date(createdAt).toDateString() : today;
-    return {
-      id: String(n.id ?? Math.random()),
-      iconKey: NOTIF_ICON[(n.reference_type as string) ?? ""] ?? "notifications",
-      title: String(n.title ?? "Notifikasi"),
-      body: String(n.message ?? n.body ?? ""),
-      timeAgo: createdAt ? notifTimeAgo(createdAt) : "Baru saja",
-      group: (notifDate === today ? "Terbaru" : "Kemarin") as AppNotification["group"],
-      read: Boolean(n.is_read),
-    };
+  return (items as Record<string, unknown>[])
+    .map((n) => {
+      const createdAt = (n.created_at as string | undefined) ?? "";
+      const notifDate = createdAt ? new Date(createdAt).toDateString() : today;
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      const group: AppNotification["group"] =
+        notifDate === today ? "Terbaru" :
+        notifDate === yesterday ? "Kemarin" : "Lebih Lama";
+      return {
+        id: String(n.id ?? Math.random()),
+        iconKey: NOTIF_ICON[(n.reference_type as string) ?? ""] ?? "notifications",
+        title: String(n.title ?? "Notifikasi"),
+        body: String(n.message ?? n.body ?? ""),
+        timeAgo: createdAt ? notifTimeAgo(createdAt) : "Baru saja",
+        group,
+        read: Boolean(n.is_read),
+      };
+    })
+    .filter((n) => {
+      if (typeof window === "undefined") return true;
+      if (n.iconKey === "chat" && localStorage.getItem("eco_notif_chat") === "false") return false;
+      if ((n.iconKey === "recycling" || n.iconKey === "redeem") && localStorage.getItem("eco_notif_update") === "false") return false;
+      return true;
+    });
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await apiFetch(`${API_URL}/notifications/${id}/read`, {
+    method: "POST",
+    headers: authHeaders(),
+  }).catch(() => {});
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  const res = await apiFetch(`${API_URL}/notifications/${id}/delete`, {
+    method: "POST",
+    headers: authHeaders(),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal menghapus notifikasi");
+  }
+}
+
+export async function deleteAllNotifications(): Promise<void> {
+  const res = await apiFetch(`${API_URL}/notifications/delete-all`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal menghapus semua notifikasi");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -700,3 +782,79 @@ export async function scanQr(qrToken: string): Promise<ScanQrResult> {
     message: String(data.message ?? "QR berhasil dipindai"),
   };
 }
+
+// ---------------------------------------------------------------------------
+// PROFILE & SECURITY
+// ---------------------------------------------------------------------------
+
+export async function updateUserProfile(payload: { fullName?: string; phone?: string; address?: string; photo?: File | null }): Promise<void> {
+  const form = new FormData();
+  if (payload.fullName) form.append("full_name", payload.fullName);
+  if (payload.phone) form.append("phone", payload.phone);
+  if (payload.address) form.append("address", payload.address);
+  if (payload.photo) form.append("photo", payload.photo);
+
+  const res = await fetch(`${API_URL}/profile/update`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui profil");
+  }
+}
+
+export async function deleteUserPhoto(): Promise<void> {
+  const res = await fetch(`${API_URL}/profile/photo`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Gagal menghapus foto profil");
+}
+
+export async function updateUserPassword(payload: { currentPassword: string; newPassword: string; newPasswordConfirmation: string }): Promise<void> {
+  const res = await fetch(`${API_URL}/profile/password`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      current_password: payload.currentPassword,
+      new_password: payload.newPassword,
+      new_password_confirmation: payload.newPasswordConfirmation,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui password");
+  }
+}
+
+export async function updateUserPin(payload: { currentPin?: string; newPin: string; newPinConfirmation: string }): Promise<void> {
+  const res = await fetch(`${API_URL}/profile/pin`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      current_pin: payload.currentPin,
+      new_pin: payload.newPin,
+      new_pin_confirmation: payload.newPinConfirmation,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal mengatur PIN");
+  }
+}
+
+export async function verifyUserPin(pin: string): Promise<void> {
+  const res = await fetch(`${API_URL}/profile/verify-pin`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "PIN salah");
+  }
+}
+
+

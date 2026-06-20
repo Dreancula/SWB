@@ -1,4 +1,4 @@
-export type VerificationStatus = "pending" | "approved" | "rejected";
+export type VerificationStatus = "pending" | "approved" | "completed" | "rejected";
 
 export interface AdminVerification {
   id: string;
@@ -18,6 +18,7 @@ export interface AdminVerification {
   status: VerificationStatus;
   submittedAt: string;
   confidence: number;
+  rejectionReason?: string | null;
 }
 
 export interface AdminCategory {
@@ -30,6 +31,7 @@ export interface AdminProduct {
   name: string;
   stock: number;
   pointCost: number;
+  imageUrl?: string | null;
 }
 
 export interface ActivityLog {
@@ -39,10 +41,26 @@ export interface ActivityLog {
   color: "primary" | "secondary" | "tertiary";
 }
 
+export interface AdminUser {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  points: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface AdminProfile {
   name: string;
   email: string;
+  phone?: string;
+  address?: string;
   role: string;
+  photoUrl?: string | null;
+  hasPin?: boolean;
+  activityLogs?: ActivityLog[] | null;
 }
 
 export interface AdminChatSession {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import jsQR from "jsqr";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
@@ -69,6 +70,7 @@ async function compressImage(file: File, maxWidth = 800, quality = 0.7): Promise
 
 export default function ScannerPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { toast, showToast } = useToast();
 
@@ -254,7 +256,7 @@ export default function ScannerPage() {
     const savedLocationId =
       typeof window !== "undefined" ? localStorage.getItem("eco_selected_location") : null;
     if (!savedLocationId) {
-      showToast("Pilih lokasi terlebih dahulu", "info");
+      showToast(t("scanner.noLocation"), "info");
       router.push("/locations");
       return;
     }
@@ -288,7 +290,7 @@ export default function ScannerPage() {
         {/* Header + tabs */}
         <div className="mb-5">
           <h1 className="text-xl md:text-headline-lg font-headline-lg text-on-background mb-3">
-            {activeTab === "deposit" ? "Setor Sampah AI" : "Scan QR"}
+            {activeTab === "deposit" ? t("scanner.titleDeposit") : t("scanner.titleScanQr")}
           </h1>
           <div className="flex gap-1 p-1 bg-surface-container rounded-xl w-fit">
             {(["deposit", "scanqr"] as Tab[]).map((tab) => (
@@ -301,7 +303,7 @@ export default function ScannerPage() {
                     : "text-on-surface-variant hover:bg-surface-variant"
                 }`}
               >
-                {tab === "deposit" ? "Setor Sampah" : "Scan QR"}
+                {tab === "deposit" ? t("scanner.tabDeposit") : t("scanner.tabScanQr")}
               </button>
             ))}
           </div>
@@ -311,8 +313,7 @@ export default function ScannerPage() {
         {activeTab === "deposit" && (
           <>
             <p className="hidden md:block text-body-lg text-on-surface-variant max-w-2xl mb-6">
-              Gunakan teknologi AI untuk mendeteksi jenis sampah otomatis.
-              Pastikan foto jelas dan pencahayaan cukup untuk hasil terbaik.
+              {t("scanner.depositSubtitle")}
             </p>
 
             {phase === "upload" && (
@@ -335,10 +336,10 @@ export default function ScannerPage() {
                 <div className="text-center">
                   <Icon name="cloud_upload" className="text-primary mb-4" style={{ fontSize: 64 }} />
                   <h2 className="text-headline-md font-headline-md mb-2">
-                    Klik untuk Upload Foto
+                    {t("scanner.uploadTitle")}
                   </h2>
                   <p className="text-body-md text-on-surface-variant">
-                    atau tarik gambar ke sini (JPG, PNG, max 10MB)
+                    {t("scanner.uploadSubtitle")}
                   </p>
                 </div>
               </label>
@@ -367,86 +368,102 @@ export default function ScannerPage() {
                   </div>
                   <div className="flex items-center gap-2 text-primary font-label-sm text-label-sm">
                     <Icon name={phase === "analyzing" ? "sync" : "check_circle"} fill />
-                    {phase === "analyzing" ? "AI SEDANG MENGANALISIS..." : "AI ANALISIS SELESAI"}
+                    {phase === "analyzing" ? t("scanner.analyzing") : t("scanner.analyzed")}
                   </div>
                 </div>
 
-                <div className="flex flex-col justify-between p-4 bg-white rounded-xl shadow-sm border border-surface-variant">
-                  {result && (
-                    <div className="space-y-stack-md">
-                      <FieldRow label="NAMA PENYETOR">
-                        <input
-                          readOnly
-                          value={user?.fullName ?? ""}
-                          className="w-full p-3 rounded-lg border border-surface-variant bg-surface-container-low outline-none cursor-not-allowed"
-                        />
-                      </FieldRow>
-                      <FieldRow label="NAMA PRODUK / SAMPAH">
-                        <input
-                          readOnly
-                          value={result.productName}
-                          className="w-full p-3 rounded-lg border border-surface-variant bg-surface-container-low outline-none cursor-not-allowed"
-                        />
-                      </FieldRow>
-                      <FieldRow label="KATEGORI TERDETEKSI">
-                        <div className="flex flex-wrap gap-2">
-                          {result.tags.map((tag, i) => (
-                            <span
-                              key={tag}
-                              className={`px-3 py-1 rounded-full text-label-sm font-label-sm border ${
-                                i === 0
-                                  ? "bg-primary-container text-on-primary-container border-primary/20"
-                                  : i === 1
-                                  ? "bg-secondary-container text-on-secondary-container border-secondary/20"
-                                  : "bg-tertiary-container text-on-tertiary-container border-tertiary/20"
-                              }`}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </FieldRow>
-                      <FieldRow label="ESTIMASI BERAT (GRAM)">
-                        <input
-                          readOnly
-                          value={result.estimatedWeight ?? 0}
-                          className="w-full p-3 rounded-lg border border-surface-variant bg-surface-container-low outline-none cursor-not-allowed"
-                        />
-                      </FieldRow>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-stack-sm">
-                          <label className="text-label-sm font-label-sm text-outline">ESTIMASI POIN</label>
-                          <div className="p-3 bg-surface-container-low rounded-lg font-bold text-primary flex items-center gap-2">
-                            <Icon name="eco" /> {points} Poin
-                          </div>
-                        </div>
-                        <div className="space-y-stack-sm">
-                          <label className="text-label-sm font-label-sm text-outline">KEAKURATAN AI</label>
-                          <div className="p-3 bg-surface-container-low rounded-lg font-bold text-secondary flex items-center gap-2">
-                            <Icon name="analytics" /> {result.confidence}%
-                          </div>
-                        </div>
+                <div className="flex flex-col justify-between p-4 bg-white rounded-xl shadow-sm border border-surface-variant min-h-[320px]">
+                  {phase === "analyzing" ? (
+                    <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12">
+                      <div className="w-20 h-20 rounded-full bg-primary-container/30 flex items-center justify-center">
+                        <Icon name="manage_search" className="text-primary animate-pulse" style={{ fontSize: 40 }} />
                       </div>
-                      <p className="text-label-sm font-label-sm text-outline">1 gram = 2 poin</p>
+                      <p className="text-primary font-bold text-lg text-center">{t("scanner.scanningTitle")}</p>
+                      <p className="text-on-surface-variant text-sm text-center max-w-xs">{t("scanner.scanningDesc")}</p>
+                      <div className="flex gap-1 mt-2">
+                        <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      {result && (
+                        <div className="space-y-stack-md">
+                          <FieldRow label={t("scanner.fieldSubmitter")}>
+                            <input
+                              readOnly
+                              value={user?.fullName ?? ""}
+                              className="w-full p-3 rounded-lg border border-surface-variant bg-surface-container-low outline-none cursor-not-allowed"
+                            />
+                          </FieldRow>
+                          <FieldRow label={t("scanner.fieldProduct")}>
+                            <input
+                              readOnly
+                              value={result.productName}
+                              className="w-full p-3 rounded-lg border border-surface-variant bg-surface-container-low outline-none cursor-not-allowed"
+                            />
+                          </FieldRow>
+                          <FieldRow label={t("scanner.fieldCategory")}>
+                            <div className="flex flex-wrap gap-2">
+                              {result.tags.map((tag, i) => (
+                                <span
+                                  key={tag}
+                                  className={`px-3 py-1 rounded-full text-label-sm font-label-sm border ${
+                                    i === 0
+                                      ? "bg-primary-container text-on-primary-container border-primary/20"
+                                      : i === 1
+                                      ? "bg-secondary-container text-on-secondary-container border-secondary/20"
+                                      : "bg-tertiary-container text-on-tertiary-container border-tertiary/20"
+                                  }`}
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </FieldRow>
+                          <FieldRow label={t("scanner.fieldWeight")}>
+                            <input
+                              readOnly
+                              value={result.estimatedWeight ?? 0}
+                              className="w-full p-3 rounded-lg border border-surface-variant bg-surface-container-low outline-none cursor-not-allowed"
+                            />
+                          </FieldRow>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-stack-sm">
+                              <label className="text-label-sm font-label-sm text-outline">{t("scanner.fieldPoints")}</label>
+                              <div className="p-3 bg-surface-container-low rounded-lg font-bold text-primary flex items-center gap-2">
+                                <Icon name="eco" /> {points} Poin
+                              </div>
+                            </div>
+                            <div className="space-y-stack-sm">
+                              <label className="text-label-sm font-label-sm text-outline">{t("scanner.fieldConfidence")}</label>
+                              <div className="p-3 bg-surface-container-low rounded-lg font-bold text-secondary flex items-center gap-2">
+                                <Icon name="analytics" /> {result.confidence}%
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-label-sm font-label-sm text-outline">{t("scanner.pointRate")}</p>
+                        </div>
+                      )}
+                      <div className="mt-stack-lg flex justify-end gap-4">
+                        <button
+                          onClick={reset}
+                          className="px-6 py-3 border border-outline text-on-surface font-button text-button rounded-xl hover:bg-surface-variant transition-colors"
+                        >
+                          {t("scanner.retakePhoto")}
+                        </button>
+                        <button
+                          onClick={handleSubmit}
+                          disabled={phase === "submitting"}
+                          className="px-6 py-3 bg-primary text-on-primary font-button text-button rounded-xl hover:brightness-95 shadow-lg flex items-center gap-2 group transition-all active:scale-95 disabled:opacity-60"
+                        >
+                          {phase === "submitting" ? t("scanner.submitting") : t("scanner.submit")}
+                          <Icon name="send" className="transition-transform group-hover:translate-x-1" />
+                        </button>
+                      </div>
+                    </>
                   )}
-
-                  <div className="mt-stack-lg flex justify-end gap-4">
-                    <button
-                      onClick={reset}
-                      className="px-6 py-3 border border-outline text-on-surface font-button text-button rounded-xl hover:bg-surface-variant transition-colors"
-                    >
-                      Ulangi Foto
-                    </button>
-                    <button
-                      onClick={handleSubmit}
-                      disabled={phase === "submitting"}
-                      className="px-6 py-3 bg-primary text-on-primary font-button text-button rounded-xl hover:brightness-95 shadow-lg flex items-center gap-2 group transition-all active:scale-95 disabled:opacity-60"
-                    >
-                      {phase === "submitting" ? "Mengirim..." : "Kirim Setor"}
-                      <Icon name="send" className="transition-transform group-hover:translate-x-1" />
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
@@ -456,23 +473,22 @@ export default function ScannerPage() {
                 <div className="w-20 h-20 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
                   <Icon name="check_circle" fill style={{ fontSize: 48 }} />
                 </div>
-                <h2 className="text-headline-md font-headline-md text-primary">Setoran Terkirim!</h2>
+                <h2 className="text-headline-md font-headline-md text-primary">{t("scanner.doneTitle")}</h2>
                 <p className="text-body-md text-on-surface-variant max-w-md">
-                  Setoran Anda sedang menunggu validasi admin. Poin akan masuk
-                  setelah diverifikasi dan muncul di riwayat transaksi.
+                  {t("scanner.doneDesc")}
                 </p>
                 <div className="flex gap-4 mt-4">
                   <button
                     onClick={reset}
                     className="px-6 py-3 border border-outline text-on-surface font-button rounded-xl hover:bg-surface-variant transition-colors"
                   >
-                    Setor Lagi
+                    {t("scanner.depositAgain")}
                   </button>
                   <button
                     onClick={() => router.push("/history")}
                     className="px-6 py-3 bg-primary text-on-primary font-button rounded-xl hover:brightness-95 transition-all"
                   >
-                    Lihat Riwayat
+                    {t("scanner.viewHistory")}
                   </button>
                 </div>
               </div>
@@ -488,16 +504,16 @@ export default function ScannerPage() {
                 <div className="w-20 h-20 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
                   <Icon name="check_circle" fill style={{ fontSize: 48 }} />
                 </div>
-                <h2 className="text-headline-md font-headline-md text-primary">QR Berhasil Dipindai!</h2>
+                <h2 className="text-headline-md font-headline-md text-primary">{t("scanner.qrSuccessTitle")}</h2>
                 <p className="text-body-md text-on-surface-variant max-w-md">{qrResult.message}</p>
                 <div className="flex gap-4 mt-2">
                   <div className="text-center p-5 bg-primary-container rounded-2xl min-w-[120px]">
                     <p className="text-3xl font-bold text-on-primary-container">+{qrResult.pointsEarned}</p>
-                    <p className="text-xs text-on-primary-container/70 font-semibold mt-1">Poin Diterima</p>
+                    <p className="text-xs text-on-primary-container/70 font-semibold mt-1">{t("scanner.qrPointsEarned")}</p>
                   </div>
                   <div className="text-center p-5 bg-surface-container rounded-2xl min-w-[120px]">
                     <p className="text-3xl font-bold text-on-surface">{qrResult.totalPoints}</p>
-                    <p className="text-xs text-on-surface-variant font-semibold mt-1">Total Poin</p>
+                    <p className="text-xs text-on-surface-variant font-semibold mt-1">{t("scanner.qrTotalPoints")}</p>
                   </div>
                 </div>
                 <div className="flex gap-4 mt-4">
@@ -505,13 +521,13 @@ export default function ScannerPage() {
                     onClick={resetQr}
                     className="px-6 py-3 border border-outline text-on-surface font-button rounded-xl hover:bg-surface-variant transition-colors"
                   >
-                    Scan Lagi
+                    {t("scanner.qrScanAgain")}
                   </button>
                   <button
                     onClick={() => router.push("/history")}
                     className="px-6 py-3 bg-primary text-on-primary font-button rounded-xl hover:brightness-95 transition-all"
                   >
-                    Lihat Riwayat
+                    {t("scanner.viewHistory")}
                   </button>
                 </div>
               </div>
@@ -522,13 +538,13 @@ export default function ScannerPage() {
                 <div className="w-20 h-20 rounded-full bg-error-container flex items-center justify-center text-on-error-container">
                   <Icon name="error" fill style={{ fontSize: 48 }} />
                 </div>
-                <h2 className="text-headline-md font-headline-md text-error">Scan Gagal</h2>
+                <h2 className="text-headline-md font-headline-md text-error">{t("scanner.qrErrorTitle")}</h2>
                 <p className="text-body-md text-on-surface-variant max-w-md">{qrErrorMsg}</p>
                 <button
                   onClick={resetQr}
                   className="mt-4 px-6 py-3 bg-primary text-on-primary font-button rounded-xl hover:brightness-95 transition-all"
                 >
-                  Coba Lagi
+                  {t("scanner.qrRetry")}
                 </button>
               </div>
             )}
@@ -536,7 +552,7 @@ export default function ScannerPage() {
             {qrPhase === "scanning" && (
               <div className="flex flex-col items-center gap-6 max-w-sm mx-auto w-full">
                 <p className="hidden md:block text-body-md text-on-surface-variant text-center">
-                  Arahkan kamera ke QR Code yang ditampilkan admin, atau masukkan token secara manual.
+                  {t("scanner.qrSubtitle")}
                 </p>
 
                 {qrScanMode === "camera" && (
@@ -572,7 +588,7 @@ export default function ScannerPage() {
                     )}
                     {!cameraError && (
                       <p className="absolute bottom-4 left-0 right-0 text-center text-white text-sm font-medium drop-shadow">
-                        Arahkan ke QR Code
+                        {t("scanner.qrAim")}
                       </p>
                     )}
                   </div>
@@ -583,7 +599,7 @@ export default function ScannerPage() {
                     <div className="flex flex-col items-center gap-3 p-8 rounded-2xl border-2 border-dashed border-outline-variant bg-surface-container-low">
                       <Icon name="qr_code_scanner" style={{ fontSize: 64 }} className="text-on-surface-variant" />
                       <p className="text-body-md text-on-surface-variant text-center">
-                        Masukkan token QR yang diberikan admin
+                        {t("scanner.qrManualDesc")}
                       </p>
                     </div>
                     <input
@@ -591,7 +607,7 @@ export default function ScannerPage() {
                       value={qrToken}
                       onChange={(e) => setQrToken(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleQrToken(qrToken)}
-                      placeholder="Paste atau ketik token QR..."
+                      placeholder={t("scanner.qrPlaceholder")}
                       className="w-full p-4 rounded-xl border border-outline bg-surface font-mono text-sm outline-none focus:ring-2 focus:ring-primary/30"
                     />
                     <button
@@ -604,7 +620,7 @@ export default function ScannerPage() {
                       ) : (
                         <Icon name="check_circle" style={{ fontSize: 20 }} />
                       )}
-                      {qrSubmitting ? "Memproses..." : "Verifikasi Token"}
+                      {qrSubmitting ? t("scanner.qrProcessing") : t("scanner.qrVerify")}
                     </button>
                   </div>
                 )}
@@ -617,7 +633,7 @@ export default function ScannerPage() {
                     name={qrScanMode === "camera" ? "keyboard" : "qr_code_scanner"}
                     style={{ fontSize: 18 }}
                   />
-                  {qrScanMode === "camera" ? "Masukkan kode manual" : "Gunakan kamera"}
+                  {qrScanMode === "camera" ? t("scanner.qrSwitchManual") : t("scanner.qrSwitchCamera")}
                 </button>
               </div>
             )}

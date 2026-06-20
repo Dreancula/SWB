@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { useAuth } from "@/context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register, loading, error } = useAuth();
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -27,15 +29,15 @@ export default function RegisterPage() {
   async function handleSubmit() {
     setLocalError(null);
     if (!form.fullName || !form.email || !form.password) {
-      setLocalError("Nama, email, dan password wajib diisi.");
+      setLocalError(t("register.errorRequired"));
       return;
     }
     if (form.password !== form.confirm) {
-      setLocalError("Konfirmasi password tidak cocok.");
+      setLocalError(t("register.errorPasswordMatch"));
       return;
     }
     if (!accept) {
-      setLocalError("Anda harus menyetujui Syarat & Ketentuan.");
+      setLocalError(t("register.errorTerms"));
       return;
     }
     const ok = await register({
@@ -63,13 +65,13 @@ export default function RegisterPage() {
               href="/about"
               className="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors"
             >
-              About Us
+              {t("register.aboutUs")}
             </Link>
             <Link
               href="/"
               className="px-6 py-2 bg-primary text-on-primary rounded-full font-button text-button hover:opacity-90 transition-opacity"
             >
-              Masuk
+              {t("register.signIn")}
             </Link>
           </div>
         </nav>
@@ -130,7 +132,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-stack-md">
-                <Field label="Nama Lengkap">
+                <Field label={t("register.fullName")}>
                   <input
                     className={inputClass}
                     placeholder="Budi Santoso"
@@ -138,7 +140,7 @@ export default function RegisterPage() {
                     onChange={(e) => update("fullName", e.target.value)}
                   />
                 </Field>
-                <Field label="Email">
+                <Field label={t("register.email")}>
                   <input
                     type="email"
                     className={inputClass}
@@ -147,7 +149,7 @@ export default function RegisterPage() {
                     onChange={(e) => update("email", e.target.value)}
                   />
                 </Field>
-                <Field label="Nomor HP">
+                <Field label={t("register.phone")}>
                   <input
                     type="tel"
                     className={inputClass}
@@ -157,7 +159,7 @@ export default function RegisterPage() {
                   />
                 </Field>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-stack-md">
-                  <Field label="Password">
+                  <Field label={t("register.password")}>
                     <input
                       type="password"
                       className={inputClass}
@@ -166,7 +168,7 @@ export default function RegisterPage() {
                       onChange={(e) => update("password", e.target.value)}
                     />
                   </Field>
-                  <Field label="Konfirmasi Password">
+                  <Field label={t("register.confirmPassword")}>
                     <input
                       type="password"
                       className={inputClass}
@@ -176,7 +178,7 @@ export default function RegisterPage() {
                     />
                   </Field>
                 </div>
-                <Field label="Alamat Lengkap">
+                <Field label={t("register.address")}>
                   <textarea
                     rows={3}
                     className={`${inputClass} resize-none`}
@@ -198,9 +200,9 @@ export default function RegisterPage() {
                     htmlFor="terms"
                     className="font-body-md text-label-sm text-on-surface-variant"
                   >
-                    Saya menyetujui{" "}
+                    {t("register.acceptTerms")}{" "}
                     <Link href="#" className="text-primary font-bold">
-                      Syarat &amp; Ketentuan
+                      {t("register.termsLink")}
                     </Link>{" "}
                     serta kebijakan privasi Smart Eco Bank.
                   </label>
@@ -217,13 +219,13 @@ export default function RegisterPage() {
                   disabled={loading}
                   className="w-full py-4 bg-primary text-on-primary rounded-xl font-button text-button shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200 active:scale-95 disabled:opacity-70"
                 >
-                  {loading ? "Mendaftarkan..." : "Daftar Sekarang"}
+                  {loading ? "Mendaftarkan..." : t("register.registerBtn")}
                 </button>
 
                 <p className="text-center mt-stack-lg font-body-md text-on-surface-variant">
-                  Sudah punya akun?{" "}
+                  {t("register.loginPrompt")}{" "}
                   <Link href="/" className="text-primary font-bold">
-                    Masuk
+                    {t("register.loginLink")}
                   </Link>
                 </p>
               </div>

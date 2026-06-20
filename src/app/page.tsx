@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { useAuth } from "@/context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 export default function LandingLoginPage() {
   const router = useRouter();
   const { login, loading, error } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -33,13 +35,13 @@ export default function LandingLoginPage() {
               href="/about"
               className="hidden md:block text-body-md font-body-md text-on-surface-variant hover:text-primary transition-colors"
             >
-              About Us
+              {t("login.aboutUs")}
             </Link>
             <button
               onClick={handleSubmit}
               className="hidden md:block px-6 py-2 rounded-full border border-primary text-primary font-button hover:bg-primary-container/10 transition-all"
             >
-              Masuk
+              {t("login.signIn")}
             </button>
           </div>
         </div>
@@ -56,17 +58,15 @@ export default function LandingLoginPage() {
                 className="text-primary text-sm"
               />
               <span className="text-label-sm font-label-sm text-on-primary-container">
-                REVOLUSI FINTECH HIJAU
+                {t("login.tagline")}
               </span>
             </div>
             <h1 className="text-headline-lg-mobile md:text-headline-lg font-headline-lg leading-tight">
-              Ubah Sampah Jadi <span className="text-primary italic">Poin</span>{" "}
-              &amp; <span className="text-primary">Aset Digital</span>
+              {t("login.hero")} <span className="text-primary italic">{t("login.heroPoints")}</span>{" "}
+              &amp; <span className="text-primary">{t("login.heroAsset")}</span>
             </h1>
             <p className="text-body-lg font-body-lg text-on-surface-variant max-w-lg">
-              Gabungkan kepedulian lingkungan dengan kecerdasan finansial. Setor
-              sampah terpilah Anda, dapatkan imbalan instan, dan pantau
-              pertumbuhan ekonomi hijau Anda dalam satu platform AI terpadu.
+              {t("login.heroDesc")}
             </p>
           </div>
           <div className="flex items-center gap-stack-md pt-stack-md">
@@ -82,8 +82,7 @@ export default function LandingLoginPage() {
               ))}
             </div>
             <div className="text-body-md font-body-md text-on-surface-variant">
-              <span className="font-bold text-on-surface">12k+</span> Pahlawan
-              Lingkungan Bergabung
+              <span className="font-bold text-on-surface">12k+</span> {t("login.activeUsers")}
             </div>
           </div>
           <div className="hidden md:block floating-eco w-32 h-32 absolute right-0 top-0 opacity-20 pointer-events-none">
@@ -102,10 +101,10 @@ export default function LandingLoginPage() {
             <div className="flex justify-between items-center mb-stack-lg">
               <div className="space-y-1">
                 <h2 className="text-headline-md font-headline-md">
-                  Selamat Datang
+                  {t("login.formTitle")}
                 </h2>
                 <p className="text-body-md font-body-md text-on-surface-variant">
-                  Masuk untuk melanjutkan menabung.
+                  {t("login.formSubtitle")}
                 </p>
               </div>
               <div className="p-2 bg-secondary-container/20 rounded-lg">
@@ -116,7 +115,7 @@ export default function LandingLoginPage() {
             <div className="space-y-stack-md">
               <div className="space-y-2">
                 <label className="text-label-sm font-label-sm text-outline block">
-                  EMAIL
+                  {t("login.emailLabel")}
                 </label>
                 <div className="relative">
                   <Icon
@@ -134,7 +133,7 @@ export default function LandingLoginPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-label-sm font-label-sm text-outline block">
-                  PASSWORD
+                  {t("login.passwordLabel")}
                 </label>
                 <div className="relative">
                   <Icon
@@ -160,7 +159,7 @@ export default function LandingLoginPage() {
                 disabled={loading}
                 className="w-full py-4 eco-gradient text-white font-button rounded-lg shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-70"
               >
-                {loading ? "Memproses..." : "Masuk Sekarang"}
+                {loading ? "Memproses..." : t("login.loginBtn")}
                 <Icon
                   name="arrow_forward"
                   className="group-hover:translate-x-1 transition-transform"
@@ -168,9 +167,9 @@ export default function LandingLoginPage() {
               </button>
 
               <p className="text-center text-body-md font-body-md text-on-surface-variant pt-4">
-                Belum punya akun?{" "}
+                {t("login.registerPrompt")}{" "}
                 <Link href="/register" className="text-primary font-bold">
-                  Daftar
+                  {t("login.registerLink")}
                 </Link>
               </p>
             </div>

@@ -13,8 +13,9 @@ export interface User {
   avatarUrl: string | null;
   pointBalance: number;
   greenLevel: string;
-  co2SavedKg: number;
+  totalGramSaved: number;
   role: string; // "admin" | "user"
+  hasPin?: boolean;
 }
 
 export type TxStatus = "success" | "pending" | "failed" | "process" | "completed" | "rejected" | "dikemas" | "pengiriman" | "selesai";
@@ -113,7 +114,7 @@ export interface AppNotification {
   title: string;
   body: string;
   timeAgo: string;
-  group: "Terbaru" | "Kemarin";
+  group: "Terbaru" | "Kemarin" | "Lebih Lama";
   read: boolean;
 }
 

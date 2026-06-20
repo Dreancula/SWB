@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
@@ -11,6 +12,7 @@ import Toast from "@/components/ui/Toast";
 import type { DashboardData } from "@/lib/types";
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { toast, showToast } = useToast();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -35,14 +37,13 @@ export default function DashboardPage() {
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-stack-lg">
             <div className="text-center md:text-left">
               <p className="text-primary-fixed font-label-sm text-label-sm uppercase tracking-widest mb-2">
-                Sustainable Balance
+                {t("dashboard.sustainableBalance")}
               </p>
               <h2 className="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-on-primary mb-2">
-                Saldo Poin: {balance.toLocaleString("id-ID")} Pts
+                {t("dashboard.pointBalance")} {balance.toLocaleString("id-ID")} Pts
               </h2>
               <p className="text-on-primary/80 font-body-md text-body-md max-w-md">
-                Setara Rp {(balance * 10).toLocaleString("id-ID")}. Kumpulkan
-                poin dari setiap sampah dan tukarkan dengan hadiah menarik.
+                {t("dashboard.equivalent")} {(balance * 10).toLocaleString("id-ID")}. {t("dashboard.collectDesc")}
               </p>
             </div>
             <Link
@@ -57,10 +58,10 @@ export default function DashboardPage() {
               />
               <div className="flex flex-col items-start">
                 <span className="text-headline-md font-headline-md leading-tight">
-                  SETOR SAMPAH
+                  {t("dashboard.depositCta")}
                 </span>
                 <span className="text-label-sm font-label-sm opacity-60">
-                  Ubah Sampah Jadi Berkah
+                  {t("dashboard.depositSubCta")}
                 </span>
               </div>
             </Link>
@@ -72,19 +73,19 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-headline-md font-headline-md">
-                Aktivitas Terakhir
+                {t("dashboard.recentActivity")}
               </h3>
               <Link
                 href="/history"
                 className="text-primary font-button text-button hover:underline"
               >
-                Lihat Semua
+                {t("dashboard.viewAll")}
               </Link>
             </div>
             <div className="bg-surface rounded-2xl border border-outline-variant overflow-hidden">
               {!data ? (
                 <div className="p-12 text-center text-on-surface-variant">
-                  Memuat aktivitas…
+                  {t("dashboard.loadingActivity")}
                 </div>
               ) : data.recentTransactions.length === 0 ? (
                 <div className="p-12 text-center space-y-4">
@@ -92,7 +93,7 @@ export default function DashboardPage() {
                     <Icon name="history" className="text-3xl" />
                   </div>
                   <p className="text-on-surface-variant">
-                    Belum ada aktivitas transaksi.
+                    {t("dashboard.noActivity")}
                   </p>
                 </div>
               ) : (
@@ -124,7 +125,7 @@ export default function DashboardPage() {
                     <table className="w-full text-left border-collapse">
                       <thead className="bg-surface-container-low border-b border-outline-variant">
                         <tr>
-                          {["Tanggal", "Kategori", "Berat", "Poin", "Status"].map((h) => (
+                          {[t("dashboard.tableDate"), t("dashboard.tableCategory"), t("dashboard.tableWeight"), t("dashboard.tablePoints"), t("dashboard.tableStatus")].map((h) => (
                             <th key={h} className="px-4 py-4 text-label-sm font-label-sm text-on-surface-variant uppercase">
                               {h}
                             </th>
@@ -155,13 +156,13 @@ export default function DashboardPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-headline-md font-headline-md">
-                Katalog Terpopuler
+                {t("dashboard.popularCatalog")}
               </h3>
               <Link
                 href="/rewards"
                 className="text-primary text-label-sm font-label-sm hover:underline"
               >
-                Semua
+                {t("dashboard.all")}
               </Link>
             </div>
             <div className="flex flex-col gap-4">
@@ -192,7 +193,7 @@ export default function DashboardPage() {
                       href="/rewards"
                       className="mt-4 block text-center w-full py-2 bg-surface-container-high hover:bg-primary-container hover:text-on-primary-container text-on-surface-variant rounded-lg font-button text-label-sm transition-colors"
                     >
-                      Tukarkan
+                      {t("dashboard.redeem")}
                     </Link>
                   </div>
                 </div>
@@ -206,27 +207,28 @@ export default function DashboardPage() {
 }
 
 function StatusBadge({ status }: { status: import("@/lib/types").TxStatus }) {
-  if (status === "success")
+  const { t } = useTranslation();
+  if (status === "success" || status === "completed" || status === "selesai")
     return (
       <span className="px-3 py-1 bg-[#d1e7dd] text-[#0f5132] rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
-        <Icon name="check_circle" className="text-[14px]" /> Sukses
+        <Icon name="check_circle" className="text-[14px]" /> {t("status.success")}
       </span>
     );
   if (status === "pending")
     return (
       <span className="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
-        <Icon name="pending" className="text-[14px]" /> Menunggu
+        <Icon name="pending" className="text-[14px]" /> {t("status.pendingShort")}
       </span>
     );
-  if (status === "process")
+  if (status === "process" || status === "dikemas" || status === "pengiriman")
     return (
       <span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
-        <Icon name="autorenew" className="text-[14px]" /> Diproses
+        <Icon name="autorenew" className="text-[14px]" /> {t("status.process")}
       </span>
     );
   return (
     <span className="px-3 py-1 bg-error-container text-error rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
-      <Icon name="cancel" className="text-[14px]" /> Gagal
+      <Icon name="cancel" className="text-[14px]" /> {t("status.failed")}
     </span>
   );
 }

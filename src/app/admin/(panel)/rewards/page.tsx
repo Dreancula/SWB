@@ -4,6 +4,18 @@ import { useEffect, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { getAdminRewardOrders, updateRewardOrderStatus } from "@/lib/adminApi";
 import type { AdminRewardOrder, RewardOrderStatus } from "@/lib/adminTypes";
+import { useTranslation } from "react-i18next";
+
+function fmtDate(iso: string) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
+}
 
 const STATUS_CONFIG: Record<RewardOrderStatus, { label: string; icon: string; color: string; badge: string }> = {
   menunggu: { label: "Menunggu Dikemas", icon: "pending_actions", color: "text-tertiary", badge: "bg-tertiary-container/30 text-tertiary" },
@@ -17,17 +29,19 @@ const NEXT_STATUS: Partial<Record<RewardOrderStatus, "dikemas" | "pengiriman">> 
   dikemas: "pengiriman",
 };
 
-const NEXT_LABEL: Partial<Record<RewardOrderStatus, string>> = {
-  menunggu: "Proses Kemas",
-  dikemas: "Kirim Sekarang",
-};
-
 function StatusBadge({ status }: { status: RewardOrderStatus }) {
+  const { t } = useTranslation();
   const cfg = STATUS_CONFIG[status];
+  const labelMap: Record<RewardOrderStatus, string> = {
+    menunggu: t("admin.rewards.statusMenunggu"),
+    dikemas: t("admin.rewards.statusDikemas"),
+    pengiriman: t("admin.rewards.statusPengiriman"),
+    selesai: t("admin.rewards.statusSelesai"),
+  };
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${cfg.badge}`}>
       <Icon name={cfg.icon} fill style={{ fontSize: 13 }} />
-      {cfg.label}
+      {labelMap[status]}
     </span>
   );
 }
@@ -38,6 +52,19 @@ export default function AdminRewardsPage() {
   const [filter, setFilter] = useState<RewardOrderStatus | "all">("all");
   const [processing, setProcessing] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const { t } = useTranslation();
+
+  const NEXT_LABEL: Partial<Record<RewardOrderStatus, string>> = {
+    menunggu: t("admin.rewards.nextLabelMenunggu"),
+    dikemas: t("admin.rewards.nextLabelDikemas"),
+  };
+
+  const STATUS_LABEL: Record<RewardOrderStatus, string> = {
+    menunggu: t("admin.rewards.statusMenunggu"),
+    dikemas: t("admin.rewards.statusDikemas"),
+    pengiriman: t("admin.rewards.statusPengiriman"),
+    selesai: t("admin.rewards.statusSelesai"),
+  };
 
   useEffect(() => {
     getAdminRewardOrders()
@@ -59,7 +86,7 @@ export default function AdminRewardsPage() {
       setOrders((prev) =>
         prev.map((o) => o.id === order.id ? { ...o, status: next } : o),
       );
-      showToast(`Pesanan #${order.id} diperbarui ke "${STATUS_CONFIG[next].label}"`);
+      showToast(t("admin.rewards.updateSuccess"));
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal memperbarui status", "error");
     } finally {
@@ -75,11 +102,11 @@ export default function AdminRewardsPage() {
   }, {});
 
   const FILTERS: { key: RewardOrderStatus | "all"; label: string }[] = [
-    { key: "all", label: `Semua (${orders.length})` },
-    { key: "menunggu", label: `Menunggu (${counts.menunggu ?? 0})` },
-    { key: "dikemas", label: `Dikemas (${counts.dikemas ?? 0})` },
-    { key: "pengiriman", label: `Pengiriman (${counts.pengiriman ?? 0})` },
-    { key: "selesai", label: `Selesai (${counts.selesai ?? 0})` },
+    { key: "all", label: `${t("admin.rewards.filterAll")} (${orders.length})` },
+    { key: "menunggu", label: `${t("admin.rewards.filterPending")} (${counts.menunggu ?? 0})` },
+    { key: "dikemas", label: `${t("admin.rewards.filterPacked")} (${counts.dikemas ?? 0})` },
+    { key: "pengiriman", label: `${t("admin.rewards.filterShipped")} (${counts.pengiriman ?? 0})` },
+    { key: "selesai", label: `${t("admin.rewards.statusDelivered")} (${counts.selesai ?? 0})` },
   ];
 
   return (
@@ -87,23 +114,23 @@ export default function AdminRewardsPage() {
       {/* Header */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 md:px-10 py-4 bg-surface border-b border-surface-variant">
         <div>
-          <h1 className="text-headline-md font-headline-md font-bold text-primary">Pesanan Reward</h1>
+          <h1 className="text-headline-md font-headline-md font-bold text-primary">{t("admin.rewards.title")}</h1>
           <p className="text-label-sm font-label-sm text-on-surface-variant hidden md:block">
-            Kelola status penukaran poin nasabah
+            {t("admin.rewards.subtitle")}
           </p>
         </div>
         {(counts.menunggu ?? 0) + (counts.dikemas ?? 0) > 0 && (
           <span className="px-3 py-1 bg-tertiary-container text-on-tertiary-container rounded-full text-label-sm font-label-sm font-bold">
-            {(counts.menunggu ?? 0) + (counts.dikemas ?? 0)} Perlu Tindakan
+            {(counts.menunggu ?? 0) + (counts.dikemas ?? 0)} {t("admin.rewards.needsAction")}
           </span>
         )}
       </header>
 
       <div className="flex-1 px-4 md:px-10 py-6 overflow-y-auto">
         <div className="mb-6">
-          <h2 className="text-xl md:text-2xl font-bold text-on-surface">Daftar Pesanan</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-on-surface">{t("admin.rewards.title")}</h2>
           <p className="text-sm text-on-surface-variant mt-1">
-            Update status dari <strong>Menunggu → Dikemas → Pengiriman</strong>. Status Selesai diupdate otomatis saat nasabah konfirmasi.
+            {t("admin.rewards.queueSubtitle")}
           </p>
         </div>
 
@@ -115,7 +142,7 @@ export default function AdminRewardsPage() {
               <div key={s} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex items-center gap-3">
                 <Icon name={cfg.icon} fill className={cfg.color} style={{ fontSize: 22 }} />
                 <div>
-                  <p className="text-xs text-outline font-bold uppercase tracking-wide">{cfg.label}</p>
+                  <p className="text-xs text-outline font-bold uppercase tracking-wide">{STATUS_LABEL[s]}</p>
                   <p className="text-xl font-bold text-on-surface">{counts[s] ?? 0}</p>
                 </div>
               </div>
@@ -146,14 +173,14 @@ export default function AdminRewardsPage() {
             {filtered.length === 0 ? (
               <div className="text-center py-12 text-on-surface-variant">
                 <Icon name="inventory_2" style={{ fontSize: 48 }} className="opacity-30 mb-2" />
-                <p>Tidak ada pesanan.</p>
+                <p>{t("admin.rewards.noOrders")}</p>
               </div>
             ) : filtered.map((order) => (
               <div key={order.id} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-bold text-on-surface text-sm">{order.userName}</p>
-                    <p className="text-xs text-outline">#{order.id} · {order.createdAt}</p>
+                    <p className="text-xs text-outline">#{order.id} · {fmtDate(order.createdAt)}</p>
                   </div>
                   <StatusBadge status={order.status} />
                 </div>
@@ -188,7 +215,7 @@ export default function AdminRewardsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant">
-                  {["#", "Nasabah", "Produk Reward", "Qty / Poin", "Status", "Dibuat", "Aksi"].map((h) => (
+                  {["#", t("admin.rewards.tableUser"), t("admin.rewards.tableReward"), `${t("admin.rewards.tableQty")} / ${t("admin.rewards.tablePoints")}`, t("admin.rewards.tableStatus"), t("admin.rewards.tableDate"), t("admin.rewards.tableActions")].map((h) => (
                     <th key={h} className="px-5 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wide">
                       {h}
                     </th>
@@ -199,14 +226,14 @@ export default function AdminRewardsPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
-                      Memuat data…
+                      {t("admin.rewards.loading")}
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-16 text-center text-on-surface-variant">
                       <Icon name="inventory_2" style={{ fontSize: 48 }} className="opacity-30 mb-2" />
-                      <p>Tidak ada pesanan untuk filter ini.</p>
+                      <p>{t("admin.rewards.noOrders")}</p>
                     </td>
                   </tr>
                 ) : (
@@ -227,7 +254,7 @@ export default function AdminRewardsPage() {
                       <td className="px-5 py-4">
                         <StatusBadge status={order.status} />
                       </td>
-                      <td className="px-5 py-4 text-xs text-on-surface-variant">{order.createdAt}</td>
+                      <td className="px-5 py-4 text-xs text-on-surface-variant">{fmtDate(order.createdAt)}</td>
                       <td className="px-5 py-4">
                         {NEXT_STATUS[order.status] ? (
                           <button

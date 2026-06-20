@@ -10,8 +10,9 @@ import {
   isLowStock,
 } from "@/lib/adminApi";
 import type { AdminProduct } from "@/lib/adminTypes";
+import { useTranslation } from "react-i18next";
 
-type EditEntry = { name: string; stock: number; pointCost: number };
+type EditEntry = { name: string; stock: number; pointCost: number; image?: File | null; imageUrl?: string | null; imagePreview?: string | null };
 type Toast = { msg: string; type: "success" | "error" };
 
 export default function AdminStockPage() {
@@ -25,22 +26,38 @@ export default function AdminStockPage() {
   // Create modal state
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: "", stock: 0, pointCost: 0 });
+  const [newProduct, setNewProduct] = useState<{name: string, stock: number, pointCost: number, image: File | null, imagePreview: string | null}>({ name: "", stock: 0, pointCost: 0, image: null, imagePreview: null });
 
   useEffect(() => {
     getAdminProducts().then((data) => {
       setProducts(data);
       const map: Record<string, EditEntry> = {};
       data.forEach((p) => {
-        map[p.id] = { name: p.name, stock: p.stock, pointCost: p.pointCost };
+        map[p.id] = { name: p.name, stock: p.stock, pointCost: p.pointCost, imageUrl: p.imageUrl };
       });
       setEditMap(map);
       setLoading(false);
     });
   }, []);
 
-  function setField(id: string, field: keyof EditEntry, val: string | number) {
+  function setField(id: string, field: keyof EditEntry, val: any) {
     setEditMap((prev) => ({ ...prev, [id]: { ...prev[id], [field]: val } }));
+  }
+
+  function handleImageChange(id: string | null, file: File | null) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (id === null) {
+        setNewProduct(prev => ({ ...prev, image: file, imagePreview: e.target?.result as string }));
+      } else {
+        setEditMap(prev => ({
+          ...prev,
+          [id]: { ...prev[id], image: file, imagePreview: e.target?.result as string }
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
   }
 
   function showToast(msg: string, type: Toast["type"] = "success") {
@@ -53,10 +70,17 @@ export default function AdminStockPage() {
     if (!edit) return;
     setUpdating(product.id);
     try {
-      await updateProduct(product.id, edit);
-      setProducts((prev) =>
-        prev.map((p) => p.id === product.id ? { ...p, ...edit } : p),
-      );
+      await updateProduct(product.id, { name: edit.name, stock: edit.stock, pointCost: edit.pointCost, image: edit.image });
+      const updatedList = await getAdminProducts();
+      setProducts(updatedList);
+      
+      const newEdit = updatedList.find(p => p.id === product.id);
+      if (newEdit) {
+        setEditMap(prev => ({
+          ...prev,
+          [product.id]: { name: newEdit.name, stock: newEdit.stock, pointCost: newEdit.pointCost, imageUrl: newEdit.imageUrl, image: null, imagePreview: null }
+        }));
+      }
       showToast("Produk berhasil diperbarui");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal memperbarui", "error");
@@ -71,7 +95,7 @@ export default function AdminStockPage() {
       await deleteProduct(id);
       setProducts((prev) => prev.filter((p) => p.id !== id));
       setEditMap((prev) => { const m = { ...prev }; delete m[id]; return m; });
-      showToast("Produk berhasil dihapus");
+      showToast(t("admin.stock.deleteSuccess"));
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal menghapus", "error");
     } finally {
@@ -87,13 +111,14 @@ export default function AdminStockPage() {
         name: newProduct.name.trim(),
         requiredPoints: newProduct.pointCost,
         stock: newProduct.stock,
+        image: newProduct.image,
       });
       setProducts((prev) => [...prev, created]);
       setEditMap((prev) => ({
         ...prev,
-        [created.id]: { name: created.name, stock: created.stock, pointCost: created.pointCost },
+        [created.id]: { name: created.name, stock: created.stock, pointCost: created.pointCost, imageUrl: created.imageUrl },
       }));
-      setNewProduct({ name: "", stock: 0, pointCost: 0 });
+      setNewProduct({ name: "", stock: 0, pointCost: 0, image: null, imagePreview: null });
       setShowCreate(false);
       showToast("Produk baru berhasil ditambahkan");
     } catch (e) {
@@ -104,15 +129,16 @@ export default function AdminStockPage() {
   }
 
   const lowCount = products.filter(isLowStock).length;
+  const { t } = useTranslation();
 
   return (
     <>
       {/* Header */}
       <header className="sticky top-0 z-40 flex justify-between items-center px-4 md:px-10 py-4 bg-surface border-b border-surface-variant">
         <div>
-          <h1 className="text-headline-md font-headline-md font-bold text-primary">Stok Produk</h1>
+          <h1 className="text-headline-md font-headline-md font-bold text-primary">{t("admin.stock.title")}</h1>
           <p className="text-label-sm font-label-sm text-on-surface-variant hidden md:block">
-            Manajemen Stok Reward
+            {t("admin.stock.subtitle")}
           </p>
         </div>
       </header>
@@ -122,10 +148,10 @@ export default function AdminStockPage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 md:mb-8">
           <div>
             <h2 className="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-on-surface">
-              Inventaris Produk
+              {t("admin.stock.inventoryTitle")}
             </h2>
             <p className="text-body-md text-on-surface-variant mt-2 max-w-xl">
-              Kelola ketersediaan barang penukaran poin nasabah.
+              {t("admin.stock.inventorySubtitle")}
             </p>
           </div>
           <button
@@ -133,7 +159,7 @@ export default function AdminStockPage() {
             className="flex items-center gap-2 bg-primary text-on-primary px-5 py-3 rounded-xl font-button shadow-lg hover:brightness-95 active:scale-95 transition-all shrink-0"
           >
             <Icon name="add" />
-            Tambah Produk
+            {t("admin.stock.addProduct")}
           </button>
         </div>
 
@@ -141,16 +167,16 @@ export default function AdminStockPage() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8">
           <div className="md:col-span-4 bg-surface-container-lowest border border-outline-variant p-6 rounded-2xl flex flex-col justify-between">
             <div>
-              <p className="text-label-sm font-label-sm text-outline mb-1">TOTAL PRODUK</p>
+              <p className="text-label-sm font-label-sm text-outline mb-1">{t("admin.stock.totalProducts")}</p>
               <h3 className="text-headline-lg font-headline-lg">{products.length}</h3>
             </div>
           </div>
           <div className="md:col-span-8 bg-surface-container-lowest border border-outline-variant p-6 rounded-2xl flex items-center justify-between relative overflow-hidden">
             <div className="relative z-10">
-              <p className="text-label-sm font-label-sm text-outline mb-1">STOK KRITIS</p>
+              <p className="text-label-sm font-label-sm text-outline mb-1">{t("admin.stock.criticalStock")}</p>
               <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="text-headline-lg font-headline-lg text-error">{lowCount}</span>
-                <span className="text-body-md text-on-surface-variant">Barang Butuh Restock</span>
+                <span className="text-body-md text-on-surface-variant">{t("admin.stock.needsRestock")}</span>
               </div>
             </div>
             <Icon name="warning" fill className="text-error opacity-10 absolute right-4 bottom-0" style={{ fontSize: 100 }} />
@@ -163,7 +189,7 @@ export default function AdminStockPage() {
             {products.length === 0 && (
               <div className="text-center py-12 text-on-surface-variant">
                 <Icon name="inventory_2" style={{ fontSize: 48 }} className="opacity-30 mb-2" />
-                <p>Belum ada produk.</p>
+                <p>{t("admin.stock.noProducts")}</p>
               </div>
             )}
             {products.map((product) => {
@@ -172,9 +198,17 @@ export default function AdminStockPage() {
               return (
                 <div key={product.id} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant shrink-0">
-                      <Icon name="redeem" fill className="text-primary opacity-60" style={{ fontSize: 20 }} />
-                    </div>
+                    <label className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant shrink-0 cursor-pointer overflow-hidden relative group">
+                      {(edit.imagePreview || edit.imageUrl) ? (
+                        <img src={edit.imagePreview || edit.imageUrl!} alt="Product" className="w-full h-full object-cover" />
+                      ) : (
+                        <Icon name="redeem" fill className="text-primary opacity-60" style={{ fontSize: 20 }} />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Icon name="photo_camera" className="text-white" style={{ fontSize: 14 }} />
+                      </div>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(product.id, e.target.files?.[0] || null)} />
+                    </label>
                     <input
                       type="text"
                       value={edit.name}
@@ -215,14 +249,14 @@ export default function AdminStockPage() {
                       className="flex items-center gap-1 text-error hover:bg-error-container px-3 py-2 rounded-lg transition-colors text-label-sm font-label-sm font-bold disabled:opacity-60"
                     >
                       <Icon name="delete" style={{ fontSize: 16 }} />
-                      {deleting === product.id ? "..." : "Hapus"}
+                      {deleting === product.id ? "..." : t("admin.stock.delete")}
                     </button>
                     <button
                       onClick={() => handleUpdate(product)}
                       disabled={updating === product.id}
                       className="flex-1 bg-primary-container text-on-primary-container py-2 rounded-lg text-label-sm font-label-sm font-bold hover:brightness-95 active:scale-95 transition-all disabled:opacity-60"
                     >
-                      {updating === product.id ? "Menyimpan..." : "Update Data"}
+                      {updating === product.id ? t("admin.stock.save") : t("admin.stock.edit")}
                     </button>
                   </div>
                 </div>
@@ -237,8 +271,8 @@ export default function AdminStockPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant">
-                  {["PRODUK", "JUMLAH STOK", "NILAI POIN", "AKSI"].map((h) => (
-                    <th key={h} className={`px-6 py-4 text-label-sm font-label-sm text-on-surface-variant ${h === "AKSI" ? "text-right" : ""}`}>
+                  {[t("admin.stock.tableName"), t("admin.stock.tableStock"), t("admin.stock.tablePoints"), t("admin.stock.tableActions")].map((h, i) => (
+                    <th key={h} className={`px-6 py-4 text-label-sm font-label-sm text-on-surface-variant ${i === 3 ? "text-right" : ""}`}>
                       {h}
                     </th>
                   ))}
@@ -248,14 +282,14 @@ export default function AdminStockPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-12 text-center text-on-surface-variant">
-                      Memuat produk...
+                      {t("admin.stock.loading")}
                     </td>
                   </tr>
                 ) : products.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-16 text-center text-on-surface-variant">
                       <Icon name="inventory_2" style={{ fontSize: 48 }} className="opacity-30 mb-2" />
-                      <p>Belum ada produk.</p>
+                      <p>{t("admin.stock.noProducts")}</p>
                     </td>
                   </tr>
                 ) : (
@@ -266,9 +300,17 @@ export default function AdminStockPage() {
                       <tr key={product.id} className="hover:bg-surface-bright transition-colors">
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant shrink-0">
-                              <Icon name="redeem" fill className="text-primary opacity-60" style={{ fontSize: 28 }} />
-                            </div>
+                            <label className="w-16 h-16 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant shrink-0 cursor-pointer overflow-hidden relative group">
+                              {(edit.imagePreview || edit.imageUrl) ? (
+                                <img src={edit.imagePreview || edit.imageUrl!} alt="Product" className="w-full h-full object-cover" />
+                              ) : (
+                                <Icon name="redeem" fill className="text-primary opacity-60" style={{ fontSize: 28 }} />
+                              )}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Icon name="photo_camera" className="text-white" style={{ fontSize: 20 }} />
+                              </div>
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(product.id, e.target.files?.[0] || null)} />
+                            </label>
                             <input
                               type="text"
                               value={edit.name}
@@ -310,7 +352,7 @@ export default function AdminStockPage() {
                             >
                               <Icon name="delete" style={{ fontSize: 18 }} />
                               <span className="text-label-sm font-label-sm font-bold">
-                                {deleting === product.id ? "..." : "Hapus"}
+                                {deleting === product.id ? "..." : t("admin.stock.delete")}
                               </span>
                             </button>
                             <button
@@ -318,7 +360,7 @@ export default function AdminStockPage() {
                               disabled={updating === product.id}
                               className="bg-primary-container text-on-primary-container px-4 py-2 rounded-lg text-label-sm font-label-sm font-bold hover:scale-105 active:scale-95 transition-all disabled:opacity-60"
                             >
-                              {updating === product.id ? "Menyimpan..." : "Update Data"}
+                              {updating === product.id ? t("admin.stock.save") : t("admin.stock.edit")}
                             </button>
                           </div>
                         </td>
@@ -344,12 +386,25 @@ export default function AdminStockPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
           <div className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-primary p-5">
-              <h3 className="font-bold text-white text-lg">Tambah Produk Baru</h3>
+              <h3 className="font-bold text-white text-lg">{t("admin.stock.addTitle")}</h3>
               <p className="text-white/80 text-xs mt-0.5">Produk akan langsung tersedia untuk ditukar</p>
             </div>
             <div className="p-6 space-y-4">
+              <div className="flex justify-center mb-2">
+                <label className="w-24 h-24 rounded-2xl bg-surface-container flex items-center justify-center border border-outline-variant shrink-0 cursor-pointer overflow-hidden relative group">
+                  {newProduct.imagePreview ? (
+                    <img src={newProduct.imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Icon name="add_a_photo" fill className="text-primary opacity-60" style={{ fontSize: 32 }} />
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Icon name="photo_camera" className="text-white" style={{ fontSize: 24 }} />
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(null, e.target.files?.[0] || null)} />
+                </label>
+              </div>
               <div className="space-y-1">
-                <label className="text-label-sm font-label-sm text-outline uppercase text-xs font-bold">Nama Produk</label>
+                <label className="text-label-sm font-label-sm text-outline uppercase text-xs font-bold">{t("admin.stock.nameLabel")}</label>
                 <input
                   type="text"
                   value={newProduct.name}
@@ -360,7 +415,7 @@ export default function AdminStockPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-label-sm font-label-sm text-outline uppercase text-xs font-bold">Stok Awal</label>
+                  <label className="text-label-sm font-label-sm text-outline uppercase text-xs font-bold">{t("admin.stock.stockLabel")}</label>
                   <input
                     type="number"
                     min={0}
@@ -370,7 +425,7 @@ export default function AdminStockPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-label-sm font-label-sm text-outline uppercase text-xs font-bold">Poin</label>
+                  <label className="text-label-sm font-label-sm text-outline uppercase text-xs font-bold">{t("admin.stock.pointsLabel")}</label>
                   <div className="relative">
                     <input
                       type="number"
@@ -385,10 +440,10 @@ export default function AdminStockPage() {
               </div>
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => { setShowCreate(false); setNewProduct({ name: "", stock: 0, pointCost: 0 }); }}
+                  onClick={() => { setShowCreate(false); setNewProduct({ name: "", stock: 0, pointCost: 0, image: null, imagePreview: null }); }}
                   className="flex-1 py-3 border border-outline text-on-surface rounded-xl font-button text-sm hover:bg-surface-variant transition-colors"
                 >
-                  Batal
+                  {t("admin.stock.cancel")}
                 </button>
                 <button
                   onClick={handleCreate}
@@ -396,7 +451,7 @@ export default function AdminStockPage() {
                   className="flex-1 py-3 bg-primary text-on-primary rounded-xl font-button text-sm hover:brightness-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   {creating ? <Icon name="sync" className="animate-spin" style={{ fontSize: 16 }} /> : <Icon name="add" style={{ fontSize: 16 }} />}
-                  {creating ? "Menyimpan..." : "Tambah"}
+                  {creating ? t("admin.stock.save") : t("admin.stock.addProduct")}
                 </button>
               </div>
             </div>

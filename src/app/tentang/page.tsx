@@ -2,41 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
-
-const STEPS = [
-  {
-    num: "01",
-    icon: "person_add",
-    title: "Daftar Akun",
-    desc: "Buat akun Smart Eco Bank dengan email, nomor HP, dan alamat Anda. Proses registrasi selesai dalam 2 menit.",
-  },
-  {
-    num: "02",
-    icon: "delete",
-    title: "Kumpulkan Sampah",
-    desc: "Pisahkan sampah Anda berdasarkan kategori: plastik, kertas, logam, dan elektronik. Semakin bersih, semakin tinggi nilainya.",
-  },
-  {
-    num: "03",
-    icon: "document_scanner",
-    title: "Scan & Setor",
-    desc: 'Buka menu "Setor", foto sampah Anda — AI kami akan mendeteksi jenis dan nilai sampah secara otomatis.',
-  },
-  {
-    num: "04",
-    icon: "eco",
-    title: "Dapatkan Poin",
-    desc: "Setelah admin memverifikasi setoran Anda, poin langsung masuk ke saldo. 1.000 gram = 2 poin.",
-  },
-  {
-    num: "05",
-    icon: "redeem",
-    title: "Tukar Reward",
-    desc: "Gunakan poin untuk menukarkan produk ramah lingkungan pilihan dari katalog Reward kami.",
-  },
-];
 
 const FAQS = [
   {
@@ -71,7 +39,41 @@ const FAQS = [
 
 export default function TentangPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const STEPS = [
+    {
+      num: "01",
+      icon: "person_add",
+      title: "Daftar Akun",
+      desc: "Buat akun Smart Eco Bank dengan email, nomor HP, dan alamat Anda. Proses registrasi selesai dalam 2 menit.",
+    },
+    {
+      num: "02",
+      icon: "delete",
+      title: "Kumpulkan Sampah",
+      desc: "Pisahkan sampah Anda berdasarkan kategori: plastik, kertas, logam, dan elektronik. Semakin bersih, semakin tinggi nilainya.",
+    },
+    {
+      num: "03",
+      icon: "document_scanner",
+      title: "Scan & Setor",
+      desc: 'Buka menu "Setor", foto sampah Anda — AI kami akan mendeteksi jenis dan nilai sampah secara otomatis.',
+    },
+    {
+      num: "04",
+      icon: "eco",
+      title: "Dapatkan Poin",
+      desc: "Setelah admin memverifikasi setoran Anda, poin langsung masuk ke saldo. 1.000 gram = 2 poin.",
+    },
+    {
+      num: "05",
+      icon: "redeem",
+      title: "Tukar Reward",
+      desc: "Gunakan poin untuk menukarkan produk ramah lingkungan pilihan dari katalog Reward kami.",
+    },
+  ];
 
   return (
     <AppShell>
@@ -84,7 +86,7 @@ export default function TentangPage() {
             className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors mb-stack-lg font-button"
           >
             <Icon name="arrow_back" />
-            Kembali ke Pengaturan
+            {t("tentang.backBtn")}
           </button>
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl bg-primary-container flex items-center justify-center text-on-primary-container shrink-0">
@@ -92,7 +94,7 @@ export default function TentangPage() {
             </div>
             <div>
               <h1 className="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-on-surface mb-2">
-                Tentang Smart Eco Bank
+                {t("tentang.title")}
               </h1>
               <p className="text-body-lg font-body-lg text-on-surface-variant max-w-2xl">
                 Panduan lengkap penggunaan aplikasi dan jawaban atas pertanyaan
@@ -127,7 +129,7 @@ export default function TentangPage() {
             </div>
             <div>
               <h2 className="text-headline-md font-headline-md text-on-surface">
-                Petunjuk Penggunaan
+                {t("tentang.howItWorks")}
               </h2>
               <p className="text-label-sm font-label-sm text-on-surface-variant">
                 5 LANGKAH MUDAH
@@ -180,7 +182,7 @@ export default function TentangPage() {
             </div>
             <div>
               <h2 className="text-headline-md font-headline-md text-on-surface">
-                FAQ
+                {t("tentang.faqTitle")}
               </h2>
               <p className="text-label-sm font-label-sm text-on-surface-variant">
                 PERTANYAAN YANG SERING DIAJUKAN

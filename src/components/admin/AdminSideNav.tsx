@@ -4,19 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { useEcho } from "@/context/EchoContext";
-
-const NAV_ITEMS = [
-  { href: "/admin/verification", label: "Verifikasi Sampah", icon: "verified_user" },
-  { href: "/admin/rewards", label: "Pesanan Reward", icon: "redeem" },
-  { href: "/admin/stock", label: "Stok Produk", icon: "inventory_2" },
-  { href: "/admin/notifications", label: "Notifikasi", icon: "notifications" },
-  { href: "/admin/chat", label: "Chat Pengguna", icon: "forum" },
-  { href: "/admin/profile", label: "Settings", icon: "settings" },
-];
+import { useTranslation } from "react-i18next";
 
 export default function AdminSideNav() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const { chatUnreadCount, notifUnreadCount } = useEcho();
+
+  const NAV_ITEMS = [
+    { href: "/admin/verification", label: t("admin.nav.verification"), icon: "verified_user" },
+    { href: "/admin/rewards", label: t("admin.nav.rewards"), icon: "redeem" },
+    { href: "/admin/stock", label: t("admin.nav.stock"), icon: "inventory_2" },
+    { href: "/admin/users", label: t("admin.nav.users"), icon: "manage_accounts" },
+    { href: "/admin/notifications", label: t("admin.nav.notifications"), icon: "notifications" },
+    { href: "/admin/chat", label: t("admin.nav.chat"), icon: "forum" },
+    { href: "/admin/profile", label: t("admin.nav.settings"), icon: "settings" },
+  ];
 
   return (
     <>
@@ -69,7 +72,7 @@ export default function AdminSideNav() {
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-outline-variant" />
             <div>
-              <p className="text-label-sm font-label-sm font-bold">System Status</p>
+              <p className="text-label-sm font-label-sm font-bold">{t("admin.nav.systemStatus")}</p>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                 <span className="text-[10px] text-outline uppercase tracking-wider">Online</span>

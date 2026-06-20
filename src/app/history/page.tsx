@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
@@ -8,12 +9,6 @@ import { getTransactions } from "@/lib/api";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/ui/Toast";
 import type { Transaction } from "@/lib/types";
-
-const FILTERS = [
-  { key: "all", label: "Semua" },
-  { key: "deposit", label: "Setoran" },
-  { key: "redeem", label: "Tukar" },
-] as const;
 
 function navigateToDetail(router: ReturnType<typeof useRouter>, t: Transaction) {
   try {
@@ -23,9 +18,18 @@ function navigateToDetail(router: ReturnType<typeof useRouter>, t: Transaction) 
 }
 
 export default function HistoryPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { toast, showToast } = useToast();
+
+  const FILTERS = [
+    { key: "all" as const, label: t("history.filterAll") },
+    { key: "deposit" as const, label: t("history.filterDeposit") },
+    { key: "redeem" as const, label: t("history.filterRedeem") },
+  ];
+
   const [filter, setFilter] = useState<"all" | "deposit" | "redeem">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [totalPoint, setTotalPoint] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -44,6 +48,15 @@ export default function HistoryPage() {
       });
   }, [filter, showToast]);
 
+  const filteredTxs = txs.filter((t) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      t.id.toString().toLowerCase().includes(q) ||
+      t.category.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <AppShell>
       {toast && <Toast {...toast} />}
@@ -51,11 +64,10 @@ export default function HistoryPage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-4 md:mb-stack-lg">
           <div>
             <h1 className="text-xl md:text-headline-lg font-headline-lg text-primary mb-1">
-              Riwayat Transaksi
+              {t("history.title")}
             </h1>
             <p className="hidden md:block text-body-md text-on-surface-variant max-w-2xl">
-              Pantau kontribusi ekologis Anda. Setiap kilogram sampah tervalidasi
-              dikonversi menjadi poin loyalitas hijau.
+              {t("history.subtitle")}
             </p>
           </div>
           <div className="relative">
@@ -64,7 +76,9 @@ export default function HistoryPage() {
               className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
             />
             <input
-              placeholder="Cari ID atau Kategori..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("history.searchPlaceholder")}
               className="pl-10 pr-4 py-2 bg-surface-container border-none rounded-xl text-body-md focus:ring-2 focus:ring-primary w-full md:w-64 outline-none"
             />
           </div>
@@ -88,9 +102,9 @@ export default function HistoryPage() {
         </div>
 
         {/* Mobile card list */}
-        {!loading && txs.length > 0 && (
+        {!loading && filteredTxs.length > 0 && (
           <div className="md:hidden space-y-3 mb-4">
-            {txs.map((t) => (
+            {filteredTxs.map((t) => (
               <button
                 key={t.id}
                 onClick={() => navigateToDetail(router, t)}
@@ -126,7 +140,7 @@ export default function HistoryPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low text-on-surface-variant border-b border-surface-variant">
-                  {["Tanggal", "ID Transaksi", "Kategori", "Berat", "Poin", "Status", ""].map(
+                  {[t("history.tableDate"), t("history.tableId"), t("history.tableCategory"), t("history.tableWeight"), t("history.tablePoints"), t("history.tableStatus"), ""].map(
                     (h) => (
                       <th
                         key={h}
@@ -145,20 +159,20 @@ export default function HistoryPage() {
                       colSpan={7}
                       className="px-6 py-12 text-center text-on-surface-variant"
                     >
-                      Memuat transaksi…
+                      {t("history.loadingTx")}
                     </td>
                   </tr>
-                ) : txs.length === 0 ? (
+                ) : filteredTxs.length === 0 ? (
                   <tr>
                     <td
                       colSpan={7}
                       className="px-6 py-12 text-center text-on-surface-variant"
                     >
-                      Belum ada transaksi untuk filter ini.
+                      {t("history.noTx")}
                     </td>
                   </tr>
                 ) : (
-                  txs.map((t) => (
+                  filteredTxs.map((t) => (
                     <tr
                       key={t.id}
                       onClick={() => navigateToDetail(router, t)}
@@ -208,7 +222,7 @@ export default function HistoryPage() {
           </div>
           <div className="px-6 py-4 bg-surface-container-low flex items-center justify-between">
             <span className="text-label-sm text-on-surface-variant">
-              Menampilkan {txs.length} transaksi
+              {t("history.showing")} {filteredTxs.length} {t("history.transactions")}
             </span>
             <div className="flex gap-2">
               <button className="p-2 rounded-lg border border-outline-variant text-on-surface-variant opacity-50">
@@ -228,13 +242,13 @@ export default function HistoryPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter mt-stack-lg">
           <div className="md:col-span-1 bg-primary-container/10 p-6 rounded-xl border border-primary/20 relative overflow-hidden">
             <h3 className="text-body-md font-bold text-primary mb-2">
-              Total Poin Terkumpul
+              {t("history.totalPoints")}
             </h3>
             <div className="text-headline-lg font-headline-lg text-primary">
               {totalPoint.toLocaleString("id-ID")} Pts
             </div>
             <p className="text-label-sm text-on-surface-variant mt-2">
-              Tukarkan dengan voucher listrik atau diskon eco-store.
+              {t("history.totalPointsDesc")}
             </p>
             <Icon
               name="savings"
@@ -272,11 +286,10 @@ export default function HistoryPage() {
             </div>
             <div>
               <h3 className="text-body-lg font-headline-md text-on-surface mb-2">
-                Target Emisi Karbon Mingguan
+                {t("history.weeklyTarget")}
               </h3>
               <p className="text-body-md text-on-surface-variant">
-                Anda membantu mencegah pelepasan 45kg CO2 ke atmosfer minggu
-                ini. Luar biasa!
+                {t("history.weeklyDesc")}
               </p>
             </div>
           </div>
@@ -287,29 +300,42 @@ export default function HistoryPage() {
 }
 
 function StatusBadge({ status }: { status: import("@/lib/types").TxStatus }) {
+  const { t } = useTranslation();
   if (status === "success" || status === "completed" || status === "selesai")
     return (
       <span className="px-3 py-1 bg-[#d1e7dd] text-[#0f5132] rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
-        <Icon name="check_circle" className="text-[14px]" /> Sukses
+        <Icon name="check_circle" className="text-[14px]" /> {t("status.success")}
       </span>
     );
   if (status === "pending")
     return (
       <span className="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
         <Icon name="pending" className="text-[14px]" />
-        <span className="hidden sm:inline">Menunggu Validasi</span>
-        <span className="sm:hidden">Menunggu</span>
+        <span className="hidden sm:inline">{t("status.pending")}</span>
+        <span className="sm:hidden">{t("status.pendingShort")}</span>
       </span>
     );
-  if (status === "process" || status === "dikemas" || status === "pengiriman")
+  if (status === "process")
     return (
       <span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
-        <Icon name="autorenew" className="text-[14px]" /> Diproses
+        <Icon name="autorenew" className="text-[14px]" /> {t("status.process")}
+      </span>
+    );
+  if (status === "dikemas")
+    return (
+      <span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
+        <Icon name="inventory_2" className="text-[14px]" /> {t("status.packed")}
+      </span>
+    );
+  if (status === "pengiriman")
+    return (
+      <span className="px-3 py-1 bg-tertiary-container text-on-tertiary-container rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
+        <Icon name="local_shipping" className="text-[14px]" /> {t("status.shipped")}
       </span>
     );
   return (
     <span className="px-3 py-1 bg-error-container text-error rounded-full text-label-sm font-bold inline-flex items-center gap-1 w-fit">
-      <Icon name="cancel" className="text-[14px]" /> Gagal
+      <Icon name="cancel" className="text-[14px]" /> {t("status.failed")}
     </span>
   );
 }

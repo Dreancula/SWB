@@ -13,16 +13,18 @@ import { mapEchoMessage } from "@/lib/echo";
 import { playNotificationSound } from "@/lib/sounds";
 import type { EchoMessagePayload } from "@/lib/echo";
 import type { ChatMessage } from "@/lib/types";
-
-const QUICK_REPLIES = [
-  "Cek status reward",
-  "Masalah transaksi",
-  "Hubungi CS langsung",
-];
+import { useTranslation } from "react-i18next";
 
 export default function CustomerServicePage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useTranslation();
+
+  const QUICK_REPLIES = [
+    t("customerService.quickReplies.0"),
+    t("customerService.quickReplies.1"),
+    t("customerService.quickReplies.2"),
+  ];
   const { echo } = useEcho();
   const { toast, showToast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -95,7 +97,7 @@ export default function CustomerServicePage() {
         {/* Header */}
         <div className="px-stack-md pt-stack-md pb-4">
           <h1 className="font-headline-md text-headline-md font-bold text-on-surface">
-            Chat dengan Admin
+            {t("customerService.title")}
           </h1>
         </div>
         <div className="h-20 border-b border-outline-variant/30 flex items-center justify-between px-stack-md glass-panel rounded-t-xl">
@@ -160,7 +162,7 @@ export default function CustomerServicePage() {
                 }
               }}
               rows={1}
-              placeholder="Tulis pesan Anda..."
+              placeholder={t("customerService.inputPlaceholder")}
               className="flex-grow bg-transparent border-none focus:ring-0 resize-none py-2 font-body-md text-on-surface placeholder:text-outline max-h-32 outline-none"
             />
             <button

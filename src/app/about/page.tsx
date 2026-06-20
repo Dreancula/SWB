@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import Icon from "@/components/ui/Icon";
 
 const PILLARS = [
@@ -27,6 +28,7 @@ const PILLARS = [
 ];
 
 export default function AboutPage() {
+  const { t } = useTranslation();
   return (
     <div className="bg-background text-on-surface min-h-screen flex flex-col">
       {/* Header */}
@@ -46,7 +48,7 @@ export default function AboutPage() {
               Home
             </Link>
             <span className="text-primary font-bold border-b-2 border-primary pb-1 font-body-md">
-              About Us
+              {t("about.title")}
             </span>
           </nav>
           <div className="flex items-center gap-4">
@@ -134,7 +136,7 @@ export default function AboutPage() {
           <div className="px-container-padding-mobile md:px-container-padding-desktop max-w-7xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-4">
-                Tugas &amp; Tanggung Jawab Kami
+                {t("about.pillarTitle")}
               </h2>
               <p className="font-body-md text-body-md text-on-surface-variant max-w-2xl mx-auto">
                 Pilar utama operasional kami untuk memastikan transparansi dan
@@ -193,7 +195,7 @@ export default function AboutPage() {
             Smart Eco Bank
           </div>
           <p className="font-body-md text-body-md text-on-surface-variant">
-            © 2024 Smart Eco Bank. Empowering a Circular Economy.
+            © 2026 Smart Eco Bank. Empowering a Circular Economy.
           </p>
           <div className="flex gap-6">
             {["language", "public", "share"].map((i) => (

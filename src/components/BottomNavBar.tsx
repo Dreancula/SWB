@@ -3,19 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./ui/Icon";
+import { useTranslation } from "react-i18next";
 
 const LEFT_ITEMS = [
-  { href: "/dashboard", label: "Home", icon: "home" },
-  { href: "/locations", label: "Locations", icon: "location_on" },
+  { href: "/dashboard", key: "nav.home", icon: "home" },
+  { href: "/locations", key: "nav.locations", icon: "location_on" },
 ];
 
 const RIGHT_ITEMS = [
-  { href: "/history", label: "History", icon: "receipt_long" },
-  { href: "/settings", label: "Settings", icon: "settings" },
+  { href: "/history", key: "nav.history", icon: "receipt_long" },
+  { href: "/settings", key: "nav.settings", icon: "settings" },
 ];
 
 export default function BottomNavBar() {
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   function NavItem({ href, label, icon }: { href: string; label: string; icon: string }) {
     const active = pathname === href;
@@ -43,7 +45,7 @@ export default function BottomNavBar() {
   return (
     <nav className="fixed bottom-0 left-0 w-full z-50 flex items-center px-1 py-1 md:hidden bg-surface shadow-[0px_-4px_20px_rgba(0,0,0,0.05)] border-t border-surface-variant">
       {LEFT_ITEMS.map((item) => (
-        <NavItem key={item.href} {...item} />
+        <NavItem key={item.href} href={item.href} label={t(item.key)} icon={item.icon} />
       ))}
 
       {/* Setor — center FAB */}
@@ -60,11 +62,11 @@ export default function BottomNavBar() {
         >
           <Icon name="recycling" fill={pathname === "/scanner"} />
         </span>
-        <span className="text-[10px] font-medium text-primary mt-0.5">Scan</span>
+        <span className="text-[10px] font-medium text-primary mt-0.5">{t("nav.scan")}</span>
       </Link>
 
       {RIGHT_ITEMS.map((item) => (
-        <NavItem key={item.href} {...item} />
+        <NavItem key={item.href} href={item.href} label={t(item.key)} icon={item.icon} />
       ))}
     </nav>
   );

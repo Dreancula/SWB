@@ -76,6 +76,11 @@ export function EchoProvider({ children }: { children: ReactNode }) {
 
     const onNotif = (e: Record<string, unknown>) => {
       const notif = mapRawNotif(e);
+      if (typeof window !== "undefined") {
+        if (notif.iconKey === "chat" && localStorage.getItem("eco_notif_chat") === "false") return;
+        if ((notif.iconKey === "recycling" || notif.iconKey === "redeem") && localStorage.getItem("eco_notif_update") === "false") return;
+      }
+
       setNotifications((prev) => [notif, ...prev]);
       setUnreadCount((c) => c + 1);
       if (notif.iconKey === 'chat') {
@@ -83,7 +88,11 @@ export function EchoProvider({ children }: { children: ReactNode }) {
       } else {
         setNotifUnreadCount((c) => c + 1);
       }
-      playNotificationSound("notification");
+      if (typeof window !== "undefined") {
+        if (localStorage.getItem("eco_notif_sound") !== "false") {
+          playNotificationSound("notification");
+        }
+      }
     };
 
     instance.private(`App.Models.User.${user.id}`)

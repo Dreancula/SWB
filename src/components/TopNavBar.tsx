@@ -4,19 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./ui/Icon";
 import { useEcho } from "@/context/EchoContext";
+import { useTranslation } from "react-i18next";
 
-const NAV = [
-  { href: "/dashboard", label: "Home" },
-  { href: "/locations", label: "Locations" },
-  { href: "/scanner", label: "Setor" },
-  { href: "/history", label: "Transactions" },
-  { href: "/rewards", label: "Rewards" },
-  { href: "/settings", label: "Settings" },
+const NAV_KEYS = [
+  { href: "/dashboard", key: "nav.home" },
+  { href: "/locations", key: "nav.locations" },
+  { href: "/scanner", key: "nav.deposit" },
+  { href: "/history", key: "nav.transactions" },
+  { href: "/rewards", key: "nav.rewards" },
+  { href: "/settings", key: "nav.settings" },
 ];
 
 export default function TopNavBar() {
   const pathname = usePathname();
   const { unreadCount } = useEcho();
+  const { t } = useTranslation();
+
   return (
     <header className="sticky top-0 z-50 w-full bg-surface border-b border-surface-variant">
       <div className="flex justify-between items-center w-full px-container-padding-mobile md:px-container-padding-desktop py-4 max-w-[1280px] mx-auto">
@@ -28,7 +31,7 @@ export default function TopNavBar() {
             Smart Eco Bank
           </Link>
           <nav className="hidden md:flex items-center gap-6">
-            {NAV.map((item) => {
+            {NAV_KEYS.map((item) => {
               const active = pathname === item.href;
               return (
                 <Link
@@ -40,7 +43,7 @@ export default function TopNavBar() {
                       : "text-body-md font-body-md text-on-surface-variant hover:text-primary transition-colors"
                   }
                 >
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               );
             })}

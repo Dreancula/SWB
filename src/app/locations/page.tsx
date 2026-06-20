@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
 import { getLocations } from "@/lib/api";
@@ -31,6 +32,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 }
 
 export default function LocationsPage() {
+  const { t } = useTranslation();
   const mapRef = useRef<MapRef>(null);
   const [nearLocations, setNearLocations] = useState<DropLocation[]>([]);
   const [allLocations, setAllLocations] = useState<DropLocation[]>([]);
@@ -168,7 +170,7 @@ export default function LocationsPage() {
             }`}
           >
             <Icon name={tab === "list" ? "list" : "map"} fill={mobileTab === tab} />
-            {tab === "list" ? "Daftar" : "Peta"}
+            {tab === "list" ? t("locations.tabList") : t("locations.tabMap")}
           </button>
         ))}
       </div>
@@ -183,10 +185,10 @@ export default function LocationsPage() {
           <div className="p-stack-md flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <h1 className="text-headline-md font-headline-md text-primary">
-                Pilih Lokasi Kamu
+                {t("locations.title")}
               </h1>
               <p className="text-body-md text-on-surface-variant">
-                Temukan titik pengumpulan sampah terdekat Anda.
+                {t("locations.subtitle")}
               </p>
             </div>
             <div className="relative">
@@ -197,7 +199,7 @@ export default function LocationsPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Cari area atau jalan..."
+                placeholder={t("locations.searchPlaceholder")}
                 className="w-full pl-10 pr-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-body-md focus:outline-none focus:ring-2 focus:ring-primary transition-all"
               />
             </div>
@@ -207,12 +209,12 @@ export default function LocationsPage() {
             {loading ? (
               <div className="py-12 text-center text-on-surface-variant">
                 <Icon name="sync" className="animate-spin text-primary text-3xl mb-2" />
-                <p className="text-sm">Mencari lokasi terdekat…</p>
+                <p className="text-sm">{t("locations.loading")}</p>
               </div>
             ) : sidebarLocations.length === 0 ? (
               <div className="py-12 text-center text-on-surface-variant">
                 <Icon name="location_off" className="text-4xl mb-2" />
-                <p className="text-sm">Tidak ada lokasi ditemukan.</p>
+                <p className="text-sm">{t("locations.noResults")}</p>
               </div>
             ) : (
               sidebarLocations.map((loc) => {
@@ -246,7 +248,7 @@ export default function LocationsPage() {
                           )}
                         </div>
                         <span className="text-label-sm text-outline font-label-sm shrink-0">
-                          {loc.distanceKm > 0 ? `${loc.distanceKm.toFixed(1)} km` : ""}
+                          {loc.distanceKm > 0 ? `${loc.distanceKm.toFixed(1)} ${t("locations.kmAway")}` : ""}
                         </span>
                       </div>
                       <h3 className="text-body-lg font-bold text-on-surface">
@@ -270,7 +272,7 @@ export default function LocationsPage() {
                     {chosen ? (
                       <div className="flex items-center gap-2 px-4 py-2 bg-primary-container/30 text-primary rounded-xl text-sm font-bold w-full justify-center">
                         <Icon name="check_circle" fill className="text-base" />
-                        Lokasi Dipilih
+                        {t("locations.selected")}
                       </div>
                     ) : pendingSelection?.id === loc.id ? (
                       <div className="flex items-center gap-2 px-4 py-2 bg-secondary-container/40 text-secondary rounded-xl text-sm font-bold w-full justify-center">
@@ -284,7 +286,7 @@ export default function LocationsPage() {
                         className="w-full py-2 bg-primary text-on-primary rounded-xl text-sm font-button hover:brightness-95 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         <Icon name="where_to_vote" className="text-base" />
-                        {loc.isFull ? "Lokasi Penuh" : !loc.isOpen ? "Tidak Tersedia" : "Pilih Lokasi"}
+                        {loc.isFull ? "Lokasi Penuh" : !loc.isOpen ? "Tidak Tersedia" : t("locations.select")}
                       </button>
                     )}
                   </div>
@@ -409,12 +411,12 @@ export default function LocationsPage() {
             className="px-4 py-2 bg-primary text-on-primary rounded-xl text-sm font-button hover:brightness-95 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
           >
             <Icon name="where_to_vote" fill className="text-base" />
-            Konfirmasi
+            {t("locations.confirmBtn")}
           </button>
           <button
             onClick={() => setPendingSelection(null)}
             className="p-2 rounded-full hover:bg-surface-variant transition-colors"
-            aria-label="Batal"
+            aria-label={t("locations.cancelBtn")}
           >
             <Icon name="close" className="text-outline text-lg" />
           </button>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { EchoProvider } from "@/context/EchoContext";
+import I18nProvider from "@/providers/I18nProvider";
 
 export const metadata: Metadata = {
   title: "Smart Eco Bank",
@@ -34,9 +35,11 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body-md">
-        <AuthProvider>
-          <EchoProvider>{children}</EchoProvider>
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <EchoProvider>{children}</EchoProvider>
+          </AuthProvider>
+        </I18nProvider>
       </body>
     </html>
   );

@@ -9,6 +9,7 @@ import { mapEchoMessage } from "@/lib/echo";
 import { playNotificationSound } from "@/lib/sounds";
 import type { EchoMessagePayload } from "@/lib/echo";
 import type { ChatMessage } from "@/lib/types";
+import { useTranslation } from "react-i18next";
 import type { AdminChatSession } from "@/lib/adminTypes";
 
 export default function AdminChatPage() {
@@ -22,6 +23,7 @@ export default function AdminChatPage() {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     getAdminChatSessions().then(setSessions);
@@ -107,10 +109,10 @@ export default function AdminChatPage() {
       >
         <div className="p-4 border-b border-surface-variant">
           <h2 className="font-headline-md text-headline-md font-bold text-on-surface">
-            Chat Masuk
+            {t("admin.chat.title")}
           </h2>
           <p className="text-label-sm text-on-surface-variant mt-1">
-            {sessions.length} sesi aktif
+            {`${sessions.length} ${t("admin.chat.activeSessions")}`}
           </p>
         </div>
 
@@ -118,7 +120,7 @@ export default function AdminChatPage() {
           {sessions.length === 0 ? (
             <div className="p-8 text-center text-on-surface-variant">
               <Icon name="chat_bubble_outline" style={{ fontSize: 40 }} />
-              <p className="mt-2 text-body-md">Belum ada chat masuk</p>
+              <p className="mt-2 text-body-md">{t("admin.chat.noChats")}</p>
             </div>
           ) : (
             sessions.map((s) => (
@@ -144,7 +146,7 @@ export default function AdminChatPage() {
                     )}
                   </div>
                   <p className="text-label-sm text-on-surface-variant truncate">
-                    {s.lastMessage || "Mulai percakapan..."}
+                    {s.lastMessage || t("admin.chat.startConversation")}
                   </p>
                 </div>
               </button>
@@ -162,7 +164,7 @@ export default function AdminChatPage() {
         {!activeSession ? (
           <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant gap-4">
             <Icon name="forum" style={{ fontSize: 64 }} className="opacity-30" />
-            <p className="text-body-lg">Pilih sesi chat untuk memulai</p>
+            <p className="text-body-lg">{t("admin.chat.selectSession")}</p>
           </div>
         ) : (
           <>
@@ -214,7 +216,7 @@ export default function AdminChatPage() {
                     }
                   }}
                   rows={1}
-                  placeholder="Tulis balasan..."
+                  placeholder={t("admin.chat.inputPlaceholder")}
                   className="flex-grow bg-transparent border-none focus:ring-0 resize-none text-sm text-on-surface placeholder:text-outline max-h-24 outline-none py-1"
                 />
                 <button

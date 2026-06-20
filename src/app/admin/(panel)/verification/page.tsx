@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
 import Icon from "@/components/ui/Icon";
 import {
@@ -59,6 +60,7 @@ function formatDate(iso: string) {
 }
 
 export default function AdminVerificationPage() {
+  const { t } = useTranslation();
   const [allItems, setAllItems] = useState<AdminVerification[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,9 +124,10 @@ export default function AdminVerificationPage() {
           weightGram: parseFloat(weightGram),
         });
         setAllItems((prev) =>
-          prev.map((i) => i.id === selected.id ? { ...i, status: "approved" as const } : i),
+          prev.map((i) => i.id === selected.id ? { ...i, status: "completed" as const } : i),
         );
         closeModal();
+        showToast(t("admin.verification.approveSuccess"));
         setQrResult(result);
       } else {
         await rejectVerification(
@@ -135,7 +138,7 @@ export default function AdminVerificationPage() {
           prev.map((i) => i.id === selected.id ? { ...i, status: "rejected" as const } : i),
         );
         closeModal();
-        showToast("Setoran berhasil ditolak.");
+        showToast(t("admin.verification.rejectSuccess"));
       }
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Terjadi kesalahan", "error");
@@ -145,7 +148,8 @@ export default function AdminVerificationPage() {
   }
 
   const items         = allItems.filter((i) => i.status === "pending");
-  const approvedCount = allItems.filter((i) => i.status === "approved").length;
+  const history       = allItems.filter((i) => i.status === "completed" || i.status === "rejected");
+  const approvedCount = allItems.filter((i) => i.status === "completed" || i.status === "approved").length;
   const rejectedCount = allItems.filter((i) => i.status === "rejected").length;
 
   const canApprove =
@@ -158,9 +162,9 @@ export default function AdminVerificationPage() {
       {/* Header */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 md:px-10 py-4 bg-surface border-b border-surface-variant">
         <div>
-          <h1 className="text-headline-md font-headline-md font-bold text-primary">Verifikasi Sampah</h1>
+          <h1 className="text-headline-md font-headline-md font-bold text-primary">{t("admin.verification.title")}</h1>
           <p className="text-label-sm text-on-surface-variant hidden md:block">
-            Setujui atau tolak setoran nasabah
+            {t("admin.verification.subtitle")}
           </p>
         </div>
         {items.length > 0 && (
@@ -173,17 +177,17 @@ export default function AdminVerificationPage() {
       {/* Content */}
       <div className="flex-1 px-4 md:px-10 py-6 overflow-y-auto">
         <div className="mb-6">
-          <h2 className="text-xl md:text-2xl font-bold text-on-surface">Antrian Verifikasi</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-on-surface">{t("admin.verification.queueTitle")}</h2>
           <p className="text-sm text-on-surface-variant mt-1 max-w-2xl">
-            Tinjau hasil scan AI, masukkan berat aktual, lalu setujui untuk membuat QR Code.
+            {t("admin.verification.queueSubtitle")}
           </p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <StatsCard label="Menunggu" value={loading ? "…" : items.length} icon="pending_actions" variant="tertiary" />
-          <StatsCard label="Disetujui" value={loading ? "…" : approvedCount} icon="check_circle" variant="primary" />
-          <StatsCard label="Ditolak" value={loading ? "…" : rejectedCount} icon="cancel" variant="error" />
+          <StatsCard label={t("admin.verification.statsPending")} value={loading ? "…" : items.length} icon="pending_actions" variant="tertiary" />
+          <StatsCard label={t("admin.verification.statsApproved")} value={loading ? "…" : approvedCount} icon="check_circle" variant="primary" />
+          <StatsCard label={t("admin.verification.statsRejected")} value={loading ? "…" : rejectedCount} icon="cancel" variant="error" />
         </div>
 
         {/* Mobile cards */}
@@ -217,11 +221,11 @@ export default function AdminVerificationPage() {
                 <div className="flex gap-2">
                   <button onClick={() => openModal(item, "approve")}
                     className="flex-1 flex items-center justify-center gap-1 py-2 bg-primary text-on-primary rounded-lg text-sm font-bold">
-                    <Icon name="check" style={{ fontSize: 16 }} /> Setujui
+                    <Icon name="check" style={{ fontSize: 16 }} /> {t("admin.verification.approve")}
                   </button>
                   <button onClick={() => openModal(item, "reject")}
                     className="flex-1 flex items-center justify-center gap-1 py-2 border border-error text-error rounded-lg text-sm font-bold">
-                    <Icon name="close" style={{ fontSize: 16 }} /> Tolak
+                    <Icon name="close" style={{ fontSize: 16 }} /> {t("admin.verification.reject")}
                   </button>
                 </div>
               </div>
@@ -235,7 +239,7 @@ export default function AdminVerificationPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant">
-                  {["Nasabah", "Kategori & AI", "Lokasi", "Berat / Poin", "Kepercayaan", "Aksi"].map((h) => (
+                  {[t("admin.verification.tableUser"), t("admin.verification.tableCategory"), "Lokasi", t("admin.verification.tableWeight"), t("admin.verification.labelConfidence"), t("admin.verification.tableActions")].map((h) => (
                     <th key={h} className="px-5 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wide">
                       {h}
                     </th>
@@ -244,13 +248,13 @@ export default function AdminVerificationPage() {
               </thead>
               <tbody className="divide-y divide-surface-variant">
                 {loading ? (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">Memuat data…</td></tr>
+                  <tr><td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">{t("admin.verification.loading")}</td></tr>
                 ) : items.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center gap-3 text-on-surface-variant">
                         <Icon name="check_circle" fill className="text-primary" style={{ fontSize: 56 }} />
-                        <p className="font-bold text-on-surface">Semua setoran telah diverifikasi!</p>
+                        <p className="font-bold text-on-surface">{t("admin.verification.noData")}</p>
                       </div>
                     </td>
                   </tr>
@@ -303,11 +307,11 @@ export default function AdminVerificationPage() {
                       <div className="flex items-center gap-2">
                         <button onClick={() => openModal(item, "approve")}
                           className="flex items-center gap-1 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-bold hover:brightness-95 active:scale-95 transition-all">
-                          <Icon name="check" style={{ fontSize: 14 }} /> Setujui
+                          <Icon name="check" style={{ fontSize: 14 }} /> {t("admin.verification.approve")}
                         </button>
                         <button onClick={() => openModal(item, "reject")}
                           className="flex items-center gap-1 px-4 py-2 border border-error text-error rounded-lg text-xs font-bold hover:bg-error-container transition-all">
-                          <Icon name="close" style={{ fontSize: 14 }} /> Tolak
+                          <Icon name="close" style={{ fontSize: 14 }} /> {t("admin.verification.reject")}
                         </button>
                       </div>
                     </td>
@@ -317,6 +321,98 @@ export default function AdminVerificationPage() {
             </table>
           </div>
         </div>
+        {/* Riwayat — completed + rejected */}
+        {!loading && history.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-bold text-on-surface mb-4">Riwayat Verifikasi</h2>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {history.map((item) => (
+                <div key={item.id} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-bold text-on-surface text-sm">{item.userName}</p>
+                      <p className="text-xs text-outline">#{item.id} · {formatDate(item.submittedAt)}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ${
+                      item.status === "completed"
+                        ? "bg-primary-container/20 text-primary"
+                        : "bg-error-container text-error"
+                    }`}>
+                      {item.status === "completed" ? t("admin.verification.statusApproved") : t("admin.verification.statusRejected")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">
+                    {item.categoryName} · {item.weightGram} g · +{item.earnedPoints} pts
+                  </p>
+                  {item.status === "rejected" && item.rejectionReason && (
+                    <p className="text-xs text-error">Alasan: {item.rejectionReason}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-surface-container-low border-b border-outline-variant">
+                      {[t("admin.verification.tableUser"), t("admin.verification.tableCategory"), "Lokasi", t("admin.verification.tableWeight"), t("admin.verification.tableDate"), t("admin.verification.tableStatus")].map((h) => (
+                        <th key={h} className="px-5 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wide">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-variant">
+                    {history.map((item) => (
+                      <tr key={item.id} className="hover:bg-surface-bright transition-colors">
+                        <td className="px-5 py-4">
+                          <p className="font-bold text-on-surface text-sm">{item.userName}</p>
+                          <p className="text-xs text-outline">#{item.id}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="px-2 py-0.5 bg-primary-container/20 text-primary rounded-full text-xs font-bold">
+                            {item.categoryName}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="text-sm text-on-surface">{item.locationName}</p>
+                          <p className="text-xs text-on-surface-variant">{item.locationAddress}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="font-bold text-on-surface">{item.weightGram} g</p>
+                          <p className="text-xs text-primary font-bold">+{item.earnedPoints} pts</p>
+                        </td>
+                        <td className="px-5 py-4 text-xs text-on-surface-variant whitespace-nowrap">
+                          {formatDate(item.submittedAt)}
+                        </td>
+                        <td className="px-5 py-4">
+                          {item.status === "completed" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-container/20 text-primary rounded-full text-xs font-bold">
+                              <Icon name="check_circle" fill style={{ fontSize: 14 }} /> {t("admin.verification.statusApproved")}
+                            </span>
+                          ) : (
+                            <div>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-error-container text-error rounded-full text-xs font-bold">
+                                <Icon name="cancel" fill style={{ fontSize: 14 }} /> {t("admin.verification.statusRejected")}
+                              </span>
+                              {item.rejectionReason && (
+                                <p className="text-xs text-on-surface-variant mt-1 max-w-[180px]">{item.rejectionReason}</p>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Approve / Reject Modal ── */}
@@ -332,7 +428,7 @@ export default function AdminVerificationPage() {
                 <Icon name={modalType === "approve" ? "check_circle" : "cancel"} fill className="text-white" style={{ fontSize: 26 }} />
                 <div>
                   <h3 className="font-bold text-white text-lg">
-                    {modalType === "approve" ? "Setujui Setoran" : "Tolak Setoran"}
+                    {modalType === "approve" ? t("admin.verification.modalApproveTitle") : t("admin.verification.modalRejectTitle")}
                   </h3>
                   <p className="text-white/80 text-xs">
                     {selected.userName} · #{selected.id} · {formatDate(selected.submittedAt)}
@@ -345,12 +441,12 @@ export default function AdminVerificationPage() {
             <div className="p-5 space-y-4 overflow-y-auto">
               {/* Summary */}
               <div className="p-3 bg-surface-container rounded-xl space-y-2">
-                <InfoRow label="Nasabah" value={`${selected.userName} (${selected.userPhone})`} />
-                <InfoRow label="Kategori AI" value={selected.aiCategory} />
+                <InfoRow label={t("admin.verification.labelUser")} value={`${selected.userName} (${selected.userPhone})`} />
+                <InfoRow label={t("admin.verification.labelCategory")} value={selected.aiCategory} />
                 <InfoRow label="Lokasi" value={selected.locationName} />
-                <InfoRow label="Berat Disetorkan" value={`${selected.weightGram} gram`} />
-                <InfoRow label="Estimasi Poin" value={`+${selected.earnedPoints} pts`} />
-                <InfoRow label="Kepercayaan AI" value={`${selected.confidence}%`} />
+                <InfoRow label={t("admin.verification.labelWeight")} value={`${selected.weightGram} gram`} />
+                <InfoRow label={t("admin.verification.labelPoints")} value={`+${selected.earnedPoints} pts`} />
+                <InfoRow label={t("admin.verification.labelConfidence")} value={`${selected.confidence}%`} />
               </div>
 
               {/* AI message */}
@@ -437,13 +533,13 @@ export default function AdminVerificationPage() {
               ) : (
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-outline uppercase tracking-wide block">
-                    Alasan Penolakan
+                    {t("admin.verification.rejectReason")}
                   </label>
                   <textarea
                     rows={3}
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}
-                    placeholder="cth: Sampah tercampur cairan minyak atau kotoran berlebih."
+                    placeholder={t("admin.verification.rejectReasonPlaceholder")}
                     className="w-full px-3 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-error resize-none"
                   />
                   <div className="flex items-start gap-2 p-3 bg-error-container rounded-xl">
@@ -463,7 +559,7 @@ export default function AdminVerificationPage() {
                 disabled={processing}
                 className="px-5 py-2.5 border border-outline text-on-surface rounded-xl font-button text-sm hover:bg-surface-variant transition-colors disabled:opacity-60"
               >
-                Batal
+                {t("admin.verification.cancel")}
               </button>
               <button
                 onClick={handleConfirm}
@@ -475,9 +571,9 @@ export default function AdminVerificationPage() {
                 {processing ? (
                   <><Icon name="sync" className="animate-spin" style={{ fontSize: 16 }} /> Memproses…</>
                 ) : modalType === "approve" ? (
-                  <><Icon name="qr_code_2" style={{ fontSize: 16 }} /> Setujui & Buat QR</>
+                  <><Icon name="qr_code_2" style={{ fontSize: 16 }} /> {t("admin.verification.approveConfirm")}</>
                 ) : (
-                  <><Icon name="close" style={{ fontSize: 16 }} /> Tolak Setoran</>
+                  <><Icon name="close" style={{ fontSize: 16 }} /> {t("admin.verification.rejectConfirm")}</>
                 )}
               </button>
             </div>
@@ -491,7 +587,7 @@ export default function AdminVerificationPage() {
           <div className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-primary p-5 text-center">
               <Icon name="qr_code_2" fill className="text-white" style={{ fontSize: 36 }} />
-              <h3 className="font-bold text-white text-lg mt-1">QR Code Berhasil Dibuat</h3>
+              <h3 className="font-bold text-white text-lg mt-1">{t("admin.verification.qrTitle")}</h3>
               <p className="text-white/80 text-xs mt-0.5">Tunjukkan kepada nasabah untuk dipindai</p>
             </div>
             <div className="p-6 flex flex-col items-center gap-4">
@@ -503,11 +599,11 @@ export default function AdminVerificationPage() {
               </div>
               <div className="w-full space-y-2">
                 <div className="flex items-center justify-between p-3 bg-primary-container/10 rounded-xl">
-                  <span className="text-xs font-bold text-outline uppercase">Poin Didapat</span>
+                  <span className="text-xs font-bold text-outline uppercase">{t("admin.verification.finalPoints")}</span>
                   <span className="font-bold text-primary text-lg">+{qrResult.points.toLocaleString("id-ID")} Pts</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-surface-container rounded-xl">
-                  <span className="text-xs font-bold text-outline uppercase">ID Transaksi</span>
+                  <span className="text-xs font-bold text-outline uppercase">{t("admin.verification.labelId")}</span>
                   <span className="font-bold text-on-surface text-sm">#{qrResult.transactionId}</span>
                 </div>
               </div>

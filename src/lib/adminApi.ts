@@ -1,4 +1,5 @@
-import { BASE_URL, setAuthToken, setAuthRole, authHeaders } from "./api";
+import { BASE_URL, setAuthToken, setAuthRole, authHeaders, logout as adminLogout } from "./api";
+export { adminLogout };
 
 const API_URL = `${BASE_URL}/api`;
 import type {
@@ -6,6 +7,7 @@ import type {
   AdminCategory,
   AdminProduct,
   AdminProfile,
+  AdminUser,
   AdminChatSession,
   AdminRewardOrder,
   RewardOrderStatus,
@@ -75,6 +77,7 @@ function mapVerification(v: Record<string, unknown>): AdminVerification {
     status:          (v.status ?? "pending") as AdminVerification["status"],
     submittedAt:     String(v.created_at ?? v.submitted_at ?? ""),
     confidence:      Number(aiResult?.confidence_score ?? v.confidence ?? 0),
+    rejectionReason: v.rejection_reason ? String(v.rejection_reason) : null,
   };
 }
 
@@ -171,13 +174,118 @@ export async function getAdminDashboard(): Promise<Record<string, unknown>> {
   return res.json();
 }
 
-export async function getAdminUsers(): Promise<Record<string, unknown>[]> {
-  const res = await fetch(`${API_URL}/admin/users`, {
+export async function deleteAdminPhoto(): Promise<void> {
+  const res = await fetch(`${API_URL}/profile/photo`, {
+    method: "DELETE",
     headers: authHeaders(),
   });
+  if (!res.ok) throw new Error("Gagal menghapus foto profil");
+}
+
+export async function createAdminUser(payload: {
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  password: string;
+  role: "admin" | "user";
+}): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/admin/users`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      full_name: payload.fullName,
+      email: payload.email,
+      phone: payload.phone,
+      address: payload.address,
+      password: payload.password,
+      role: payload.role,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal membuat user");
+  }
+  const data = await res.json();
+  const u = (data.data ?? data) as Record<string, unknown>;
+  return {
+    id: String(u.id ?? ""),
+    fullName: String(u.full_name ?? u.name ?? ""),
+    email: String(u.email ?? ""),
+    phone: String(u.phone ?? ""),
+    address: String(u.address ?? ""),
+    points: Number(u.points ?? 0),
+    isActive: u.is_active !== false && u.is_active !== 0,
+    createdAt: String(u.created_at ?? ""),
+  };
+}
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const res = await fetch(`${API_URL}/admin/users`, { headers: authHeaders() });
   if (!res.ok) throw new Error("Gagal memuat daftar user");
   const data = await res.json();
-  return Array.isArray(data) ? data : (data.data ?? []);
+  const payload = (data.data ?? data) as Record<string, unknown>;
+  const list: Record<string, unknown>[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.users)
+      ? (payload.users as Record<string, unknown>[])
+      : [];
+  return list.map((u) => ({
+    id: String(u.id ?? ""),
+    fullName: String(u.full_name ?? u.name ?? ""),
+    email: String(u.email ?? ""),
+    phone: String(u.phone ?? ""),
+    address: String(u.address ?? ""),
+    points: Number(u.points ?? u.total_points ?? 0),
+    isActive: u.is_active !== false && u.is_active !== 0,
+    createdAt: String(u.created_at ?? ""),
+  }));
+}
+
+export async function updateAdminUser(
+  id: string,
+  payload: { fullName: string; phone: string; address: string },
+): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/users/${id}/update`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      full_name: payload.fullName,
+      phone: payload.phone,
+      address: payload.address,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui user");
+  }
+}
+
+export async function suspendAdminUser(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/users/${id}/suspend`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui status user");
+  }
+}
+
+export async function adjustUserPoints(
+  userId: string,
+  amount: number,
+  reason: string,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/points/adjust`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId, amount, reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal menyesuaikan poin");
+  }
 }
 
 export async function getAdminReports(): Promise<Record<string, unknown>> {
@@ -223,8 +331,87 @@ export async function getAdminProfile(): Promise<AdminProfile> {
   return {
     name: (d.full_name ?? d.name ?? d.fullName ?? "") as string,
     email: (d.email ?? "") as string,
+    phone: (d.phone ?? "") as string,
+    address: (d.address ?? "") as string,
     role: (d.role ?? "Administrator") as string,
+    photoUrl: (d.photo_url ?? null) as string | null,
+    hasPin: Boolean(d.has_pin),
+    activityLogs: Array.isArray(d.activity_logs)
+      ? (d.activity_logs as Record<string, unknown>[]).map((l) => {
+          const TYPE_COLOR: Record<string, ActivityLog["color"]> = {
+            auth: "primary", verification: "secondary", stock: "tertiary",
+          };
+          return {
+            id: String(l.id ?? ""),
+            action: String(l.title ?? l.action ?? ""),
+            timestamp: String(l.time ?? l.timestamp ?? ""),
+            color: TYPE_COLOR[String(l.type ?? "")] ?? "primary",
+          };
+        })
+      : null,
   };
+}
+
+export async function updateAdminProfile(payload: { fullName?: string; phone?: string; address?: string; photo?: File | null }): Promise<void> {
+  const form = new FormData();
+  if (payload.fullName) form.append("full_name", payload.fullName);
+  if (payload.phone) form.append("phone", payload.phone);
+  if (payload.address) form.append("address", payload.address);
+  if (payload.photo) form.append("photo", payload.photo);
+
+  const res = await fetch(`${API_URL}/profile/update`, {
+    method: "POST",
+    headers: authHeaders(), // Form data should NOT have Content-Type: application/json
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui profil");
+  }
+}
+
+export async function updateAdminPassword(payload: { currentPassword: string; newPassword: string; newPasswordConfirmation: string }): Promise<void> {
+  const res = await fetch(`${API_URL}/profile/password`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      current_password: payload.currentPassword,
+      new_password: payload.newPassword,
+      new_password_confirmation: payload.newPasswordConfirmation,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui password");
+  }
+}
+
+export async function updateAdminPin(payload: { currentPin?: string; newPin: string; newPinConfirmation: string }): Promise<void> {
+  const res = await fetch(`${API_URL}/profile/pin`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      current_pin: payload.currentPin,
+      new_pin: payload.newPin,
+      new_pin_confirmation: payload.newPinConfirmation,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal mengatur PIN");
+  }
+}
+
+export async function verifyAdminPin(pin: string): Promise<void> {
+  const res = await fetch(`${API_URL}/profile/verify-pin`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "PIN salah");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -237,6 +424,7 @@ function mapProduct(p: Record<string, unknown>): AdminProduct {
     name: String(p.product_name ?? p.name ?? ""),
     stock: Number(p.stock ?? 0),
     pointCost: Number(p.required_points ?? p.point_cost ?? 0),
+    imageUrl: (p.image_url ?? p.imageUrl ?? null) as string | null,
   };
 }
 
@@ -257,15 +445,26 @@ export async function createProduct(payload: {
   name: string;
   requiredPoints: number;
   stock: number;
+  image?: File | null;
 }): Promise<AdminProduct> {
+  const formData = new FormData();
+  formData.append("product_name", payload.name);
+  formData.append("required_points", payload.requiredPoints.toString());
+  formData.append("stock", payload.stock.toString());
+  if (payload.image) {
+    formData.append("image", payload.image);
+  }
+
+  // Build headers excluding Content-Type (let browser set it with boundary)
+  const headers: HeadersInit = authHeaders();
+  if (headers && "Content-Type" in headers) {
+    delete (headers as Record<string, string>)["Content-Type"];
+  }
+
   const res = await fetch(`${API_URL}/admin/rewards`, {
     method: "POST",
-    headers: { ...authHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      product_name: payload.name,
-      required_points: payload.requiredPoints,
-      stock: payload.stock,
-    }),
+    headers,
+    body: formData,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -277,16 +476,26 @@ export async function createProduct(payload: {
 
 export async function updateProduct(
   id: string,
-  payload: { name: string; stock: number; pointCost: number },
+  payload: { name: string; stock: number; pointCost: number; image?: File | null }
 ): Promise<void> {
+  const formData = new FormData();
+  formData.append("product_name", payload.name);
+  formData.append("required_points", payload.pointCost.toString());
+  formData.append("stock", payload.stock.toString());
+  if (payload.image) {
+    formData.append("image", payload.image);
+  }
+
+  // Build headers excluding Content-Type
+  const headers: HeadersInit = authHeaders();
+  if (headers && "Content-Type" in headers) {
+    delete (headers as Record<string, string>)["Content-Type"];
+  }
+
   const res = await fetch(`${API_URL}/admin/rewards/${id}/update`, {
     method: "POST",
-    headers: { ...authHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      product_name: payload.name,
-      required_points: payload.pointCost,
-      stock: payload.stock,
-    }),
+    headers,
+    body: formData,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -304,12 +513,6 @@ export async function deleteProduct(id: string): Promise<void> {
     throw new Error((err as { message?: string }).message ?? "Gagal menghapus produk");
   }
 }
-
-export const ACTIVITY_LOGS: ActivityLog[] = [
-  { id: "1", action: "Berhasil Login", timestamp: "Hari ini, 08:30 WIB", color: "primary" },
-  { id: "2", action: "Verifikasi Setoran #VRF-001", timestamp: "Kemarin, 14:20 WIB", color: "secondary" },
-  { id: "3", action: "Update Stok Tumbler", timestamp: "18 Jun, 10:15 WIB", color: "tertiary" },
-];
 
 // ---------------------------------------------------------------------------
 // Admin Chat

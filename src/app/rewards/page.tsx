@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
 import { getRewards, redeemReward } from "@/lib/api";
@@ -9,18 +10,21 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/ui/Toast";
 import type { Reward } from "@/lib/types";
+import PinVerificationModal from "@/components/PinVerificationModal";
 
 const CATEGORIES = ["All", "Accessories", "Apparel", "Eco-Home"];
 
 export default function RewardsPage() {
+  const { t } = useTranslation();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { toast, showToast } = useToast();
   const [category, setCategory] = useState("All");
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [redeeming, setRedeeming] = useState<Reward | null>(null);
   const [qty, setQty] = useState(1);
   const [successName, setSuccessName] = useState<string | null>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
   const BALANCE = user?.pointBalance ?? 0;
 
   useEffect(() => {
@@ -36,11 +40,21 @@ export default function RewardsPage() {
 
   async function confirmRedeem() {
     if (!redeeming) return;
+    if (user?.hasPin) {
+      setShowPinModal(true);
+      return;
+    }
+    await performRedeem();
+  }
+
+  async function performRedeem() {
+    if (!redeeming) return;
     const name = redeeming.name;
     setRedeeming(null);
     try {
       await redeemReward(redeeming.id, qty);
       setSuccessName(name);
+      refreshUser(); // Assuming refreshUser is imported or available to update point balance
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Penukaran reward gagal", "error");
     }
@@ -54,15 +68,13 @@ export default function RewardsPage() {
         <section className="mb-stack-lg flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-2">
             <span className="text-label-sm font-label-sm text-primary tracking-widest">
-              ECO-LOYALTY PROGRAM
+              {t("rewards.programLabel")}
             </span>
             <h1 className="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-on-surface">
-              Tukarkan Dampak Anda
+              {t("rewards.title")}
             </h1>
             <p className="text-body-lg font-body-lg text-on-surface-variant max-w-2xl">
-              Tukarkan poin keberlanjutan Anda dengan produk ramah lingkungan
-              eksklusif. Setiap reward berkontribusi pada planet yang lebih
-              bersih.
+              {t("rewards.subtitle")}
             </p>
           </div>
           <div className="bg-primary-container p-6 rounded-xl flex items-center gap-4 shadow-sm border border-primary/10">
@@ -71,7 +83,7 @@ export default function RewardsPage() {
             </div>
             <div>
               <p className="text-label-sm font-label-sm text-on-primary-container opacity-80">
-                Poin Tersedia
+                {t("rewards.availablePoints")}
               </p>
               <p className="text-headline-md font-headline-md text-on-primary-container">
                 {BALANCE.toLocaleString("id-ID")} pts
@@ -92,7 +104,7 @@ export default function RewardsPage() {
                   : "bg-surface-container hover:bg-surface-variant text-on-surface-variant"
               }`}
             >
-              {c === "All" ? "Semua Reward" : c}
+              {c === "All" ? t("rewards.categoryAll") : c}
             </button>
           ))}
         </div>
@@ -108,13 +120,19 @@ export default function RewardsPage() {
                 key={r.id}
                 className="group bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden flex flex-col"
               >
-                <div className="relative aspect-square overflow-hidden eco-gradient flex items-center justify-center">
-                  <Icon
-                    name="redeem"
-                    fill
-                    className="text-white/90 transition-transform group-hover:scale-110"
-                    style={{ fontSize: 96 }}
-                  />
+                <div className="relative aspect-square overflow-hidden bg-surface-container flex items-center justify-center">
+                  {r.image ? (
+                    <img src={r.image} alt={r.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                  ) : (
+                    <div className="absolute inset-0 eco-gradient flex items-center justify-center">
+                      <Icon
+                        name="redeem"
+                        fill
+                        className="text-white/90 transition-transform group-hover:scale-110"
+                        style={{ fontSize: 96 }}
+                      />
+                    </div>
+                  )}
                   {r.badge && (
                     <div className="absolute top-4 left-4">
                       <span
@@ -145,9 +163,9 @@ export default function RewardsPage() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-label-sm font-label-sm">
                         <span className={lowStock ? "text-error font-bold" : "text-on-surface-variant"}>
-                          {lowStock ? "Stok menipis!" : "Stok tersedia"}
+                          {lowStock ? t("rewards.stockLow") : t("rewards.stockAvailable")}
                         </span>
-                        <span className="text-on-surface font-bold">{r.stock} unit</span>
+                        <span className="text-on-surface font-bold">{r.stock} {t("rewards.unit")}</span>
                       </div>
                       <div className="w-full bg-surface-variant h-1.5 rounded-full overflow-hidden">
                         <div
@@ -162,7 +180,7 @@ export default function RewardsPage() {
                       className="w-full py-4 bg-primary text-on-primary rounded-xl font-button text-button hover:bg-surface-tint active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Icon name="redeem" />
-                      {affordable ? "Tukarkan Poin" : "Poin Tidak Cukup"}
+                      {affordable ? t("rewards.redeemBtn") : t("rewards.insufficientPoints")}
                     </button>
                   </div>
                 </div>
@@ -195,7 +213,7 @@ export default function RewardsPage() {
 
           {/* Qty picker */}
           <div className="bg-surface-container-low border border-outline-variant rounded-xl p-4 mb-4">
-            <p className="text-label-sm font-label-sm text-outline mb-3">JUMLAH</p>
+            <p className="text-label-sm font-label-sm text-outline mb-3">{t("rewards.qty")}</p>
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setQty((q) => Math.max(1, q - 1))}
@@ -220,7 +238,7 @@ export default function RewardsPage() {
           {/* Point summary */}
           <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl p-4 mb-6">
             <div className="text-body-md font-body-md text-on-surface-variant">
-              Total poin dipotong
+              {t("rewards.totalDeducted")}
             </div>
             <div className="flex items-center gap-1.5 text-primary font-bold text-lg">
               <Icon name="eco" fill className="text-xl" />
@@ -231,7 +249,7 @@ export default function RewardsPage() {
           {BALANCE < redeeming.pointCost * qty && (
             <p className="text-error text-label-sm font-label-sm mb-4 flex items-center gap-1">
               <Icon name="warning" className="text-base" />
-              Poin tidak mencukupi untuk jumlah ini
+              {t("rewards.insufficientQty")}
             </p>
           )}
 
@@ -240,7 +258,7 @@ export default function RewardsPage() {
               onClick={() => setRedeeming(null)}
               className="flex-1 py-3 border border-outline rounded-xl font-button hover:bg-surface-variant transition-colors"
             >
-              Batal
+              {t("common.cancel")}
             </button>
             <button
               onClick={confirmRedeem}
@@ -248,7 +266,7 @@ export default function RewardsPage() {
               className="flex-1 py-3 bg-primary text-on-primary rounded-xl font-button hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Icon name="redeem" />
-              Tukarkan Sekarang
+              {t("rewards.redeemNow")}
             </button>
           </div>
         </Overlay>
@@ -261,29 +279,38 @@ export default function RewardsPage() {
             <Icon name="check_circle" fill style={{ fontSize: 40 }} />
           </div>
           <h3 className="text-headline-md font-headline-md text-primary text-center">
-            Penukaran Berhasil!
+            {t("rewards.successTitle")}
           </h3>
           <p className="text-body-md text-on-surface-variant text-center mt-2 mb-6">
-            <span className="font-bold text-on-surface">{successName}</span> sedang diproses.
-            Cek status pengiriman di Riwayat Transaksi.
+            <span className="font-bold text-on-surface">{successName}</span> {t("rewards.successDesc")}
           </p>
           <div className="flex gap-3">
             <button
               onClick={() => setSuccessName(null)}
               className="flex-1 py-3 border border-outline rounded-xl font-button hover:bg-surface-variant transition-colors"
             >
-              Tutup
+              {t("common.close")}
             </button>
             <button
               onClick={() => { setSuccessName(null); router.push("/history"); }}
               className="flex-1 py-3 bg-primary text-on-primary rounded-xl font-button hover:brightness-95 transition-all flex items-center justify-center gap-2"
             >
               <Icon name="receipt_long" />
-              Lihat Transaksi
+              {t("rewards.viewTransaction")}
             </button>
           </div>
         </Overlay>
       )}
+
+      <PinVerificationModal
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onSuccess={() => {
+          setShowPinModal(false);
+          performRedeem();
+        }}
+        isAdmin={false}
+      />
     </AppShell>
   );
 }

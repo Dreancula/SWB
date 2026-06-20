@@ -28,7 +28,7 @@ export default function Footer() {
           </Link>
         </div>
         <p className="font-label-sm text-label-sm text-on-surface-variant text-center md:text-right">
-          © 2024 Smart Eco Bank. Secure &amp; Sustainable.
+          © 2026 Smart Eco Bank. Secure &amp; Sustainable.
         </p>
       </div>
     </footer>
