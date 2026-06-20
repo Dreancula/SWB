@@ -12,6 +12,8 @@ import {
 import type { AdminProduct } from "@/lib/adminTypes";
 import { useTranslation } from "react-i18next";
 
+const NO_IMAGE = "/images/noimages.svg";
+
 type EditEntry = { name: string; stock: number; pointCost: number; image?: File | null; imageUrl?: string | null; imagePreview?: string | null };
 type Toast = { msg: string; type: "success" | "error" };
 
@@ -199,11 +201,12 @@ export default function AdminStockPage() {
                 <div key={product.id} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 space-y-3">
                   <div className="flex items-center gap-3">
                     <label className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant shrink-0 cursor-pointer overflow-hidden relative group">
-                      {(edit.imagePreview || edit.imageUrl) ? (
-                        <img src={edit.imagePreview || edit.imageUrl!} alt="Product" className="w-full h-full object-cover" />
-                      ) : (
-                        <Icon name="redeem" fill className="text-primary opacity-60" style={{ fontSize: 20 }} />
-                      )}
+                      <img
+                        src={edit.imagePreview || edit.imageUrl || NO_IMAGE}
+                        alt="Product"
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = NO_IMAGE; }}
+                      />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <Icon name="photo_camera" className="text-white" style={{ fontSize: 14 }} />
                       </div>
@@ -301,11 +304,12 @@ export default function AdminStockPage() {
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-4">
                             <label className="w-16 h-16 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant shrink-0 cursor-pointer overflow-hidden relative group">
-                              {(edit.imagePreview || edit.imageUrl) ? (
-                                <img src={edit.imagePreview || edit.imageUrl!} alt="Product" className="w-full h-full object-cover" />
-                              ) : (
-                                <Icon name="redeem" fill className="text-primary opacity-60" style={{ fontSize: 28 }} />
-                              )}
+                              <img
+                                src={edit.imagePreview || edit.imageUrl || NO_IMAGE}
+                                alt="Product"
+                                className="w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLImageElement).src = NO_IMAGE; }}
+                              />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <Icon name="photo_camera" className="text-white" style={{ fontSize: 20 }} />
                               </div>

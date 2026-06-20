@@ -121,18 +121,12 @@ export default function RewardsPage() {
                 className="group bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden flex flex-col"
               >
                 <div className="relative aspect-square overflow-hidden bg-surface-container flex items-center justify-center">
-                  {r.image ? (
-                    <img src={r.image} alt={r.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
-                  ) : (
-                    <div className="absolute inset-0 eco-gradient flex items-center justify-center">
-                      <Icon
-                        name="redeem"
-                        fill
-                        className="text-white/90 transition-transform group-hover:scale-110"
-                        style={{ fontSize: 96 }}
-                      />
-                    </div>
-                  )}
+                  <img
+                    src={r.image || "/images/noimages.svg"}
+                    alt={r.name}
+                    className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                    onError={(e) => { (e.target as HTMLImageElement).src = "/images/noimages.svg"; }}
+                  />
                   {r.badge && (
                     <div className="absolute top-4 left-4">
                       <span
