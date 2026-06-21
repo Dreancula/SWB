@@ -16,6 +16,7 @@ export default function AdminSideNav() {
     { href: "/admin/rewards", label: t("admin.nav.rewards"), icon: "redeem" },
     { href: "/admin/stock", label: t("admin.nav.stock"), icon: "inventory_2" },
     { href: "/admin/users", label: t("admin.nav.users"), icon: "manage_accounts" },
+    { href: "/admin/locations", label: "Lokasi", icon: "add_location" },
     { href: "/admin/notifications", label: t("admin.nav.notifications"), icon: "notifications" },
     { href: "/admin/chat", label: t("admin.nav.chat"), icon: "forum" },
     { href: "/admin/profile", label: t("admin.nav.settings"), icon: "settings" },

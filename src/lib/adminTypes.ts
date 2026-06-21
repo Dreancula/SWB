@@ -26,12 +26,25 @@ export interface AdminCategory {
   name: string;
 }
 
+export interface ProductLocationStock {
+  id: number;
+  productId: string;
+  locationId: number;
+  stock: number;
+  location: {
+    id: number;
+    locationName: string;
+    address: string;
+  };
+}
+
 export interface AdminProduct {
   id: string;
   name: string;
   stock: number;
   pointCost: number;
   imageUrl?: string | null;
+  locationStocks: ProductLocationStock[];
 }
 
 export interface ActivityLog {
@@ -87,4 +100,19 @@ export interface AdminRewardOrder {
   totalPoints: number;
   status: RewardOrderStatus;
   createdAt: string;
+  pickupCode?: string;
+  pickupLocationName?: string;
+  pickupLocationId?: number;
+}
+
+export interface AdminLocation {
+  id: number;
+  locationName: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  currentCapacity?: number;
+  maxCapacity?: number;
+  status?: string;
+  createdAt?: string;
 }

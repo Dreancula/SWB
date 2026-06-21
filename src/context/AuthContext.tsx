@@ -30,6 +30,12 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+function flagSuspended() {
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem("account_suspended", "1");
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -46,7 +52,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = api.getStoredToken();
     if (token && !user) {
-      api.getUser().then(setUser).catch(console.error);
+      api.getUser().then((u) => {
+        if (u.isCanceled) {
+          api.logout().then(() => {
+            setUser(null);
+            flagSuspended();
+            router.push("/login");
+          });
+        } else {
+          setUser(u);
+        }
+      }).catch(console.error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -56,11 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const res = await api.login(email, password);
+      if (res.user.isCanceled) {
+        await api.logout();
+        flagSuspended();
+        return null;
+      }
       setUser(res.user);
       return res.user;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login gagal");
-      return null;
+      throw e;
     } finally {
       setLoading(false);
     }
@@ -98,11 +119,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     try {
       const u = await api.getUser();
+      if (u.isCanceled) {
+        await api.logout();
+        setUser(null);
+        flagSuspended();
+        router.push("/login");
+        return;
+      }
       setUser(u);
     } catch {
       // ignore
     }
-  }, []);
+  }, [router]);
 
   return (
     <AuthContext.Provider

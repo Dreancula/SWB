@@ -3,6 +3,7 @@ import type {
   DashboardData,
   DropLocation,
   Reward,
+  RewardLocationStock,
   Transaction,
   ScanResult,
   ChatMessage,
@@ -72,6 +73,7 @@ function mapUser(u: Record<string, unknown>): User {
     totalGramSaved: Number(u.total_gram_saved ?? u.totalGramSaved ?? 0),
     role: (u.role ?? "user") as string,
     hasPin: Boolean(u.has_pin),
+    isCanceled: Boolean(u.is_suspended ?? u.is_canceled),
   };
 }
 
@@ -162,6 +164,8 @@ function mapTransaction(t: Record<string, unknown>): Transaction {
     qty: t.quantity !== undefined ? Number(t.quantity) : t.qty !== undefined ? Number(t.qty) : undefined,
     pointPerItem: t.point_per_item !== undefined ? Number(t.point_per_item) : undefined,
     totalPoints: t.total_points !== undefined ? Number(t.total_points) : undefined,
+    pickupCode: type === "redeem" ? (t.pickup_code as string | undefined) ?? undefined : undefined,
+    pickupLocationName: type === "redeem" ? (t.pickup_location_name as string | undefined) ?? undefined : undefined,
     shippingStatus: type === "redeem"
       ? ((): Transaction["shippingStatus"] => {
           const raw = (t.shipping_status ?? t.shippingStatus) as string | undefined;
@@ -176,6 +180,16 @@ function mapTransaction(t: Record<string, unknown>): Transaction {
 }
 
 function mapReward(r: Record<string, unknown>): Reward {
+  const rawStocks = Array.isArray(r.location_stocks) ? (r.location_stocks as Record<string, unknown>[]) : [];
+  const locationStocks: RewardLocationStock[] = rawStocks.map((ls) => {
+    const loc = ls.location as Record<string, unknown> | undefined;
+    return {
+      locationId: Number(ls.location_id ?? 0),
+      locationName: String(loc?.location_name ?? ""),
+      address: String(loc?.address ?? ""),
+      stock: Number(ls.stock ?? 0),
+    };
+  });
   return {
     id: String(r.id ?? ""),
     name: (r.product_name ?? r.name ?? "") as string,
@@ -186,6 +200,7 @@ function mapReward(r: Record<string, unknown>): Reward {
     stockMax: Number(r.stock_max ?? r.stockMax ?? r.stock ?? 0),
     badge: (r.badge ?? null) as string | null,
     image: (r.image_url ?? r.imageUrl ?? r.image ?? r.product_image ?? null) as string | null,
+    locationStocks,
   };
 }
 
@@ -318,6 +333,7 @@ export async function getDashboard(): Promise<DashboardData> {
 export interface LocationsResult {
   near: DropLocation[];
   all: DropLocation[];
+  selectedLocation?: { id: number | string; locationName: string } | null;
 }
 
 export async function getLocations(
@@ -372,7 +388,27 @@ export async function getLocations(
     );
   }
 
-  return { near, all };
+  const selectedLocationRaw = data.selected_location as Record<string, unknown> | null;
+  const selectedLocation = selectedLocationRaw ? {
+    id: (selectedLocationRaw.id ?? "") as number | string,
+    locationName: (selectedLocationRaw.location_name ?? "") as string
+  } : null;
+
+  return { near, all, selectedLocation };
+}
+
+export async function updateSelectedLocation(locationId: number | string): Promise<void> {
+  const form = new FormData();
+  form.append("location_id", String(locationId));
+  const res = await apiFetch(`${API_URL}/locations/select`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui lokasi pilihan");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -423,21 +459,17 @@ export async function submitDeposit(payload: {
   productName: string;
   category: string;
   weightGrams: number;
-  locationId?: number | string;
+  locationId: number | string;
   categoryId?: number | string;
   confidence?: number;
   message?: string;
   imagePath?: string;
 }): Promise<Transaction> {
-  const savedLocationId =
-    typeof window !== "undefined"
-      ? (localStorage.getItem("eco_selected_location") ?? "")
-      : "";
   const form = new FormData();
   form.append("product_name", payload.productName);
   form.append("category_name", payload.category);
   form.append("weight_gram", String(payload.weightGrams));
-  form.append("location_id", String(payload.locationId ?? savedLocationId));
+  form.append("location_id", String(payload.locationId));
   form.append("category_id", String(payload.categoryId ?? ""));
   form.append("confidence", String(payload.confidence ?? 0));
   form.append("message", payload.message ?? "");
@@ -518,15 +550,22 @@ export interface RewardTrackingItem {
 export async function getRewardOrderDetail(id: string): Promise<{
   status: string;
   tracking: RewardTrackingItem[];
+  pickupCode?: string;
+  pickupLocationName?: string;
+  pickupLocationAddress?: string;
 }> {
   const res = await apiFetch(`${API_URL}/rewards/orders/${id}`, { headers: authHeaders() });
   if (!res.ok) throw new Error("Gagal memuat detail pesanan");
   const raw = await res.json();
   const d = (raw.data ?? raw) as Record<string, unknown>;
   const order = (d.order ?? d) as Record<string, unknown>;
+  const loc = d.pickup_location as Record<string, unknown> | undefined;
   return {
     status: String(order.status ?? ""),
     tracking: Array.isArray(d.tracking) ? (d.tracking as RewardTrackingItem[]) : [],
+    pickupCode: d.pickup_code ? String(d.pickup_code) : undefined,
+    pickupLocationName: loc?.location_name ? String(loc.location_name) : undefined,
+    pickupLocationAddress: loc?.address ? String(loc.address) : undefined,
   };
 }
 
@@ -559,10 +598,12 @@ export async function getRewards(category = "All"): Promise<Reward[]> {
 export async function redeemReward(
   rewardId: string,
   quantity = 1,
+  locationId: number,
 ): Promise<{ success: boolean; newBalance: number }> {
   const form = new FormData();
   form.append("product_id", rewardId);
   form.append("quantity", String(quantity));
+  form.append("location_id", String(locationId));
   const res = await apiFetch(`${API_URL}/rewards/exchange`, {
     method: "POST",
     headers: authHeaders(),

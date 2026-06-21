@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
-import { getLocations } from "@/lib/api";
+import { getLocations, updateSelectedLocation } from "@/lib/api";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/ui/Toast";
 import type { DropLocation } from "@/lib/types";
@@ -38,12 +38,7 @@ export default function LocationsPage() {
   const [allLocations, setAllLocations] = useState<DropLocation[]>([]);
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("eco_selected_location");
-    }
-    return null;
-  });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<"list" | "map">("list");
   const { toast, showToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -71,10 +66,13 @@ export default function LocationsPage() {
     if (!geoReady) return;
     setLoading(true);
     getLocations(query, userCoords?.latitude, userCoords?.longitude)
-      .then(({ near, all }) => {
+      .then(({ near, all, selectedLocation }) => {
         setNearLocations(near);
         setAllLocations(all);
         setActiveId((prev) => prev ?? near[0]?.id ?? all[0]?.id ?? null);
+        if (selectedLocation) {
+          setSelectedId(String(selectedLocation.id));
+        }
       })
       .catch((e) => showToast(e instanceof Error ? e.message : "Gagal memuat lokasi", "error"))
       .finally(() => setLoading(false));
@@ -105,15 +103,16 @@ export default function LocationsPage() {
     if (mobileTab === "list") setMobileTab("map");
   }, [mobileTab]);
 
-  function handleSelectLocation(loc: DropLocation) {
+  async function handleSelectLocation(loc: DropLocation) {
     if (!loc.isOpen) return;
-    setSelectedId(loc.id);
-    setPendingSelection(null);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("eco_selected_location", loc.id);
-      localStorage.setItem("eco_selected_location_name", loc.name);
+    try {
+      await updateSelectedLocation(loc.id);
+      setSelectedId(loc.id);
+      setPendingSelection(null);
+      showToast(`Lokasi "${loc.name}" dipilih sebagai tempat setor sampah.`, "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Gagal memilih lokasi", "error");
     }
-    showToast(`Lokasi "${loc.name}" dipilih sebagai tempat setor sampah.`, "success");
   }
 
   function handlePickLocation(loc: DropLocation) {

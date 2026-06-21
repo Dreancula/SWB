@@ -121,8 +121,8 @@ export default function HistoryPage() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-label-sm text-on-surface-variant">{t.date} · {t.timeLabel}</span>
                     {t.points && (
-                      <span className="text-primary font-bold text-sm shrink-0">
-                        {t.points > 0 ? "+" : ""}{t.points.toLocaleString("id-ID")} Pts
+                      <span className={`font-bold text-sm shrink-0 ${t.type === "redeem" ? "text-error" : "text-primary"}`}>
+                        {t.type === "redeem" ? "-" : "+"}{t.points.toLocaleString("id-ID")} Pts
                       </span>
                     )}
                   </div>
@@ -203,9 +203,9 @@ export default function HistoryPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-5 font-bold text-primary-container">
+                      <td className={`px-6 py-5 font-bold ${t.type === "redeem" ? "text-error" : "text-primary-container"}`}>
                         {t.points
-                          ? `+${t.points.toLocaleString("id-ID")} Pts`
+                          ? `${t.type === "redeem" ? "-" : "+"}${t.points.toLocaleString("id-ID")} Pts`
                           : "—"}
                       </td>
                       <td className="px-6 py-5">

@@ -16,6 +16,7 @@ export interface User {
   totalGramSaved: number;
   role: string; // "admin" | "user"
   hasPin?: boolean;
+  isCanceled?: boolean;
 }
 
 export type TxStatus = "success" | "pending" | "failed" | "process" | "completed" | "rejected" | "dikemas" | "pengiriman" | "selesai";
@@ -50,6 +51,15 @@ export interface Transaction {
   pointPerItem?: number;
   totalPoints?: number;
   shippingStatus?: ShippingStatus;
+  pickupCode?: string;
+  pickupLocationName?: string;
+}
+
+export interface RewardLocationStock {
+  locationId: number;
+  locationName: string;
+  address: string;
+  stock: number;
 }
 
 export interface Reward {
@@ -62,6 +72,7 @@ export interface Reward {
   stockMax: number;
   badge: string | null;
   image?: string | null;
+  locationStocks: RewardLocationStock[];
 }
 
 export interface DropLocation {

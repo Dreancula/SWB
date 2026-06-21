@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
@@ -17,6 +17,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState("");
+  const [suspended, setSuspended] = useState(false);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("account_suspended") === "1") {
+      setSuspended(true);
+      sessionStorage.removeItem("account_suspended");
+    }
+  }, []);
 
   async function handleSubmit() {
     if (!email || !password || phase !== "idle") return;
@@ -26,7 +34,12 @@ export default function LoginPage() {
       const user = await login(email, password);
       if (!user) {
         setPhase("idle");
-        setError(t("login.errorInvalid"));
+        if (sessionStorage.getItem("account_suspended") === "1") {
+          sessionStorage.removeItem("account_suspended");
+          setSuspended(true);
+        } else {
+          setError(t("login.errorInvalid"));
+        }
         return;
       }
       setPhase("redirecting");
@@ -105,6 +118,23 @@ export default function LoginPage() {
         {/* Right: login form */}
         <div className="w-full md:w-1/2 flex justify-center items-center">
           <div className="glass-card w-full max-w-md p-stack-lg rounded-xl shadow-[0px_4px_20px_rgba(0,0,0,0.05)] relative overflow-hidden">
+
+            {/* Suspension alert */}
+            {suspended && (
+              <div className="mb-stack-md flex items-start gap-3 bg-error-container/20 border border-error/40 rounded-lg p-4">
+                <Icon name="gpp_bad" fill className="text-error shrink-0 mt-0.5" style={{ fontSize: 20 }} />
+                <div>
+                  <p className="font-bold text-error text-label-sm">{t("login.suspendedTitle")}</p>
+                  <p className="text-error/80 text-label-sm mt-0.5">{t("login.suspendedDesc")}</p>
+                </div>
+                <button
+                  onClick={() => setSuspended(false)}
+                  className="ml-auto shrink-0 text-error/60 hover:text-error transition-colors"
+                >
+                  <Icon name="close" style={{ fontSize: 16 }} />
+                </button>
+              </div>
+            )}
 
             {/* Loading overlay */}
             {busy && (

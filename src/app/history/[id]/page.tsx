@@ -5,15 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
-import { confirmDelivery, getRewardOrderDetail } from "@/lib/api";
+import { getRewardOrderDetail } from "@/lib/api";
 import type { RewardTrackingItem } from "@/lib/api";
-import type { Transaction, ShippingStatus } from "@/lib/types";
-
-const STEP_ORDER: ShippingStatus[] = ["diproses", "dikirim", "sampai"];
-
-function stepIndex(s: ShippingStatus) {
-  return STEP_ORDER.indexOf(s);
-}
+import type { Transaction } from "@/lib/types";
 
 // ── Status badge ─────────────────────────────────────────────────────────────
 function TxStatusBadge({ status }: { status: Transaction["status"] }) {
@@ -61,37 +55,12 @@ export default function TransactionDetailPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const SHIPPING_STEPS: {
-    key: ShippingStatus;
-    label: string;
-    sublabel: string;
-    icon: string;
-  }[] = [
-    {
-      key: "diproses" as ShippingStatus,
-      label: t("historyDetail.stepProcessed"),
-      sublabel: t("historyDetail.stepProcessedSub"),
-      icon: "inventory_2",
-    },
-    {
-      key: "dikirim" as ShippingStatus,
-      label: t("historyDetail.stepShipped"),
-      sublabel: t("historyDetail.stepShippedSub"),
-      icon: "local_shipping",
-    },
-    {
-      key: "sampai" as ShippingStatus,
-      label: t("historyDetail.stepDelivered"),
-      sublabel: t("historyDetail.stepDeliveredSub"),
-      icon: "home",
-    },
-  ];
-
   const [tx, setTx] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
-  const [shipping, setShipping] = useState<ShippingStatus>("diproses");
-  const [confirming, setConfirming] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const [orderStatus, setOrderStatus] = useState<string>("process");
+  const [pickupCode, setPickupCode] = useState<string | undefined>();
+  const [pickupLocationName, setPickupLocationName] = useState<string | undefined>();
+  const [pickupLocationAddress, setPickupLocationAddress] = useState<string | undefined>();
   const [trackingItems, setTrackingItems] = useState<RewardTrackingItem[]>([]);
 
   useEffect(() => {
@@ -101,18 +70,19 @@ export default function TransactionDetailPage() {
       if (raw) {
         txData = JSON.parse(raw) as Transaction;
         setTx(txData);
-        if (txData.shippingStatus) setShipping(txData.shippingStatus);
+        if (txData.pickupCode) setPickupCode(txData.pickupCode);
+        if (txData.pickupLocationName) setPickupLocationName(txData.pickupLocationName);
       }
     } catch { }
 
     if (txData?.type === "redeem") {
       getRewardOrderDetail(id)
-        .then(({ status, tracking }) => {
+        .then(({ status, tracking, pickupCode: code, pickupLocationName: locName, pickupLocationAddress: locAddr }) => {
+          setOrderStatus(status);
           if (tracking.length > 0) setTrackingItems(tracking);
-          const s = status;
-          if (s === "pengiriman") setShipping("dikirim");
-          else if (s === "selesai") setShipping("sampai");
-          else setShipping("diproses");
+          if (code) setPickupCode(code);
+          if (locName) setPickupLocationName(locName);
+          if (locAddr) setPickupLocationAddress(locAddr);
         })
         .catch(() => {})
         .finally(() => setLoading(false));
@@ -120,14 +90,6 @@ export default function TransactionDetailPage() {
       setLoading(false);
     }
   }, [id]);
-
-  async function handleConfirm() {
-    setConfirming(true);
-    await confirmDelivery(id);
-    setShipping("sampai");
-    setConfirmed(true);
-    setConfirming(false);
-  }
 
   if (loading) {
     return (
@@ -147,9 +109,7 @@ export default function TransactionDetailPage() {
       <AppShell>
         <div className="max-w-[1280px] mx-auto px-container-padding-mobile md:px-container-padding-desktop py-stack-lg flex flex-col items-center justify-center min-h-[400px] gap-4">
           <Icon name="search_off" className="text-on-surface-variant" style={{ fontSize: 64 }} />
-          <p className="text-headline-md font-headline-md text-on-surface-variant">
-            {t("historyDetail.notFound")}
-          </p>
+          <p className="text-headline-md font-headline-md text-on-surface-variant">{t("historyDetail.notFound")}</p>
           <button
             onClick={() => router.back()}
             className="px-6 py-3 bg-primary text-on-primary rounded-xl font-button hover:brightness-95 transition-all"
@@ -162,6 +122,22 @@ export default function TransactionDetailPage() {
   }
 
   const isRedeem = tx.type === "redeem";
+  const isSelesai = orderStatus === "selesai";
+
+  // Pickup tracker steps — derived from trackingItems if available, else static
+  const pickupSteps: { status: string; label: string; description: string; date?: string; is_completed: boolean }[] =
+    trackingItems.length > 0
+      ? trackingItems
+      : [
+          { status: "process", label: "Pesanan Diterima", description: "Pesanan telah diterima dan sedang disiapkan.", is_completed: true },
+          {
+            status: "pickup",
+            label: `Ambil di ${pickupLocationName ?? "Posko"}`,
+            description: `Tunjukkan kode pengambilan ke petugas di ${pickupLocationName ?? "posko pilihan Anda"}.`,
+            is_completed: isSelesai,
+          },
+          { status: "selesai", label: "Selesai", description: "Reward berhasil diambil.", is_completed: isSelesai },
+        ];
 
   return (
     <AppShell>
@@ -200,17 +176,9 @@ export default function TransactionDetailPage() {
             <InfoCell label={t("historyDetail.labelDate")} value={tx.date} />
             <InfoCell label={t("historyDetail.labelTime")} value={tx.timeLabel} />
             {isRedeem ? (
-              <InfoCell
-                label={t("historyDetail.labelPointsUsed")}
-                value={`${Math.abs(tx.points ?? 0).toLocaleString("id-ID")} pts`}
-                accent
-              />
+              <InfoCell label={t("historyDetail.labelPointsUsed")} value={`${Math.abs(tx.points ?? 0).toLocaleString("id-ID")} pts`} accent />
             ) : (
-              <InfoCell
-                label={t("historyDetail.labelPointsEarned")}
-                value={tx.points ? `+${tx.points.toLocaleString("id-ID")} pts` : "—"}
-                accent={!!tx.points}
-              />
+              <InfoCell label={t("historyDetail.labelPointsEarned")} value={tx.points ? `+${tx.points.toLocaleString("id-ID")} pts` : "—"} accent={!!tx.points} />
             )}
           </div>
         </div>
@@ -232,134 +200,103 @@ export default function TransactionDetailPage() {
               </div>
             </div>
 
-            {/* Shipping tracker */}
+            {/* Pickup code card */}
+            {pickupCode && !isSelesai && (
+              <div className="bg-surface border-2 border-primary/30 rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Icon name="qr_code" fill className="text-primary" style={{ fontSize: 22 }} />
+                  <h2 className="font-body-md font-bold text-on-surface text-lg">Kode Pengambilan</h2>
+                </div>
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 text-center mb-4">
+                  <p className="text-4xl font-mono font-bold tracking-[0.3em] text-primary select-all">
+                    {pickupCode}
+                  </p>
+                  <p className="text-label-sm text-on-surface-variant mt-2">Tunjukkan kode ini ke petugas posko</p>
+                </div>
+                {(pickupLocationName || pickupLocationAddress) && (
+                  <div className="flex items-start gap-3 p-4 bg-surface-container rounded-xl">
+                    <Icon name="location_on" fill className="text-primary shrink-0 mt-0.5" style={{ fontSize: 18 }} />
+                    <div>
+                      {pickupLocationName && <p className="font-bold text-on-surface text-sm">{pickupLocationName}</p>}
+                      {pickupLocationAddress && <p className="text-label-sm text-on-surface-variant">{pickupLocationAddress}</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Pickup status tracker */}
             <div className="bg-surface border border-outline-variant rounded-2xl p-6 space-y-6">
               <h2 className="font-body-md font-bold text-on-surface text-lg flex items-center gap-2">
-                <Icon name="local_shipping" className="text-secondary" />
-                {t("historyDetail.shippingTracker")}
+                <Icon name="track_changes" className="text-secondary" />
+                Status Pengambilan
               </h2>
 
               <div className="relative">
                 <div className="absolute left-5 top-6 bottom-6 w-0.5 bg-outline-variant" />
-
                 <div className="space-y-0">
-                  {trackingItems.length > 0 ? (
-                    // API tracking data — sorted oldest→newest
-                    [...trackingItems]
-                      .sort((a, b) => {
-                        const ORDER: Record<string, number> = { process: 1, menunggu: 1, dikemas: 2, pengiriman: 3, selesai: 4 };
-                        return (ORDER[a.status] ?? 9) - (ORDER[b.status] ?? 9);
-                      })
-                      .map((item, i, arr) => {
-                        const isLast = i === arr.length - 1;
-                        const done = item.is_completed || confirmed;
-                        const active = isLast && done && !confirmed;
-                        return (
-                          <div key={item.status + i} className="flex gap-4 items-start pb-8 last:pb-0 relative">
-                            <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                              done
-                                ? active ? "bg-primary text-on-primary ring-4 ring-primary/20" : "bg-primary text-on-primary"
-                                : "bg-surface border-2 border-outline-variant text-on-surface-variant"
-                            }`}>
-                              {done && !active
-                                ? <Icon name="check" style={{ fontSize: 18 }} />
-                                : <Icon name={item.status === "pengiriman" ? "local_shipping" : item.status === "selesai" ? "home" : "inventory_2"} fill={done} style={{ fontSize: 18 }} />
-                              }
-                            </div>
-                            <div className="flex-grow pt-1.5">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className={`font-body-md font-bold ${done ? "text-on-surface" : "text-on-surface-variant"}`}>
-                                  {item.label}
-                                </p>
-                                {active && <span className="px-2 py-0.5 bg-tertiary-container text-on-tertiary-container rounded-full text-label-sm font-label-sm">Aktif</span>}
-                                {item.status === "selesai" && confirmed && <span className="px-2 py-0.5 bg-[#d1e7dd] text-[#0f5132] rounded-full text-label-sm font-label-sm">Selesai</span>}
-                              </div>
-                              <p className={`text-label-sm font-label-sm mt-0.5 ${done ? "text-on-surface-variant" : "text-outline"}`}>
-                                {item.description}
-                              </p>
-                              {item.is_completed && item.date && (
-                                <p className="text-xs text-outline mt-1">{item.date}</p>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                  ) : (
-                    // Fallback — hardcoded steps
-                    SHIPPING_STEPS.map((step, i) => {
-                      const currentIdx = stepIndex(shipping);
-                      const done = i <= currentIdx;
-                      const active = i === currentIdx;
-                      return (
-                        <div key={step.key} className="flex gap-4 items-start pb-8 last:pb-0 relative">
-                          <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                            done
-                              ? active ? "bg-primary text-on-primary ring-4 ring-primary/20" : "bg-primary text-on-primary"
+                  {pickupSteps.map((step, i, arr) => {
+                    const done = step.is_completed;
+                    const active = !done && (i === 0 || arr[i - 1]?.is_completed);
+                    const iconName =
+                      step.status === "selesai" ? "check_circle" :
+                      step.status === "pickup" ? "store" : "receipt_long";
+                    return (
+                      <div key={step.status + i} className="flex gap-4 items-start pb-8 last:pb-0 relative">
+                        <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                          done
+                            ? "bg-primary text-on-primary"
+                            : active
+                              ? "bg-primary text-on-primary ring-4 ring-primary/20"
                               : "bg-surface border-2 border-outline-variant text-on-surface-variant"
-                          }`}>
-                            {done && !active ? <Icon name="check" style={{ fontSize: 18 }} /> : <Icon name={step.icon} fill={done} style={{ fontSize: 18 }} />}
-                          </div>
-                          <div className="flex-grow pt-1.5">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className={`font-body-md font-bold ${done ? "text-on-surface" : "text-on-surface-variant"}`}>{step.label}</p>
-                              {active && !confirmed && <span className="px-2 py-0.5 bg-tertiary-container text-on-tertiary-container rounded-full text-label-sm font-label-sm">Aktif</span>}
-                              {step.key === "sampai" && confirmed && <span className="px-2 py-0.5 bg-[#d1e7dd] text-[#0f5132] rounded-full text-label-sm font-label-sm">Selesai</span>}
-                            </div>
-                            <p className={`text-label-sm font-label-sm mt-0.5 ${done ? "text-on-surface-variant" : "text-outline"}`}>{step.sublabel}</p>
-                          </div>
+                        }`}>
+                          {done && !active
+                            ? <Icon name="check" style={{ fontSize: 18 }} />
+                            : <Icon name={iconName} fill={done || active} style={{ fontSize: 18 }} />
+                          }
                         </div>
-                      );
-                    })
-                  )}
+                        <div className="flex-grow pt-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className={`font-body-md font-bold ${done || active ? "text-on-surface" : "text-on-surface-variant"}`}>
+                              {step.label}
+                            </p>
+                            {active && (
+                              <span className="px-2 py-0.5 bg-tertiary-container text-on-tertiary-container rounded-full text-label-sm font-label-sm">Aktif</span>
+                            )}
+                            {step.status === "selesai" && done && (
+                              <span className="px-2 py-0.5 bg-[#d1e7dd] text-[#0f5132] rounded-full text-label-sm font-label-sm">Selesai</span>
+                            )}
+                          </div>
+                          <p className={`text-label-sm font-label-sm mt-0.5 ${done || active ? "text-on-surface-variant" : "text-outline"}`}>
+                            {step.description}
+                          </p>
+                          {step.is_completed && step.date && (
+                            <p className="text-xs text-outline mt-1">{step.date}</p>
+                          )}
+                          {/* Show code inline on pickup step if not yet done */}
+                          {step.status === "pickup" && !done && pickupCode && (
+                            <div className="mt-3 inline-flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-4 py-2">
+                              <Icon name="qr_code" className="text-primary" style={{ fontSize: 16 }} />
+                              <span className="font-mono font-bold text-primary tracking-widest text-sm">{pickupCode}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Confirm button — only when status is "dikirim" and not yet confirmed */}
-              {shipping === "dikirim" && !confirmed && (
-                <div className="pt-4 border-t border-outline-variant space-y-3">
-                  <div className="flex items-start gap-3 p-4 bg-tertiary-container/20 border border-tertiary/20 rounded-xl">
-                    <Icon name="info" fill className="text-tertiary shrink-0 mt-0.5" />
-                    <p className="text-body-md text-on-surface-variant text-sm leading-relaxed">
-                      Paket sudah sampai? Konfirmasi penerimaan agar transaksi selesai.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleConfirm}
-                    disabled={confirming}
-                    className="w-full py-4 bg-primary text-on-primary rounded-xl font-button hover:brightness-95 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-                  >
-                    {confirming ? (
-                      <>
-                        <Icon name="sync" className="animate-spin" />
-                        {t("historyDetail.confirming")}
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="check_circle" fill />
-                        {t("historyDetail.confirmDelivery")}
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-
               {/* Done state */}
-              {(shipping === "sampai" || confirmed) && (
+              {isSelesai && (
                 <div className="pt-4 border-t border-outline-variant flex items-center gap-3 p-4 bg-[#d1e7dd]/40 border border-[#0f5132]/20 rounded-xl">
                   <Icon name="check_circle" fill className="text-[#0f5132] shrink-0" style={{ fontSize: 28 }} />
                   <div>
-                    <p className="font-body-md font-bold text-[#0f5132]">Transaksi Selesai</p>
-                    <p className="text-label-sm text-on-surface-variant">Terima kasih telah mengkonfirmasi penerimaan.</p>
+                    <p className="font-body-md font-bold text-[#0f5132]">Pengambilan Terverifikasi</p>
+                    <p className="text-label-sm text-on-surface-variant">Reward Anda telah berhasil diambil di posko.</p>
                   </div>
                 </div>
               )}
-
-              <div className="flex items-center gap-2 text-on-surface-variant">
-                <Icon name="schedule" className="text-sm" />
-                <p className="text-label-sm font-label-sm">
-                  Estimasi pengiriman: <span className="font-bold text-on-surface">3–5 hari kerja</span>
-                </p>
-              </div>
             </div>
           </>
         )}
@@ -373,18 +310,11 @@ export default function TransactionDetailPage() {
             </h2>
             <div className="grid grid-cols-2 gap-3">
               <InfoCell label="KATEGORI SAMPAH" value={tx.category} />
-              <InfoCell
-                label="BERAT"
-                value={tx.weightGram != null ? `${tx.weightGram} g` : "—"}
-              />
-              <InfoCell
-                label="POIN DIPEROLEH"
-                value={tx.points ? `+${tx.points.toLocaleString("id-ID")} pts` : "Menunggu validasi"}
-                accent={!!tx.points}
-              />
+              <InfoCell label="BERAT" value={tx.weightGram != null ? `${tx.weightGram} g` : "—"} />
+              <InfoCell label="POIN DIPEROLEH" value={tx.points ? `+${tx.points.toLocaleString("id-ID")} pts` : "Menunggu validasi"} accent={!!tx.points} />
               <InfoCell label="STATUS" value={
                 (tx.status === "success" || tx.status === "completed") ? "Tervalidasi" :
-                tx.status === "pending" ? "Menunggu Validasi" : 
+                tx.status === "pending" ? "Menunggu Validasi" :
                 tx.status === "process" ? "Diproses" : "Ditolak"
               } />
             </div>
@@ -404,17 +334,7 @@ export default function TransactionDetailPage() {
   );
 }
 
-function InfoCell({
-  label,
-  value,
-  accent,
-  mono,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-  mono?: boolean;
-}) {
+function InfoCell({ label, value, accent, mono }: { label: string; value: string; accent?: boolean; mono?: boolean }) {
   return (
     <div className="space-y-1">
       <p className="text-label-sm font-label-sm text-outline">{label}</p>

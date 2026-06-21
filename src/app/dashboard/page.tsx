@@ -108,8 +108,8 @@ export default function DashboardPage() {
                         <div className="flex-grow min-w-0">
                           <div className="flex items-center justify-between gap-1">
                             <span className="font-bold text-sm text-on-surface truncate">{t.category}</span>
-                            <span className="font-bold text-primary text-sm shrink-0">
-                              {t.points ? `+${t.points.toLocaleString("id-ID")}` : "—"}
+                            <span className={`font-bold text-sm shrink-0 ${t.type === "redeem" ? "text-error" : "text-primary"}`}>
+                              {t.points ? `${t.type === "redeem" ? "-" : "+"}${t.points.toLocaleString("id-ID")}` : "—"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-1">
@@ -138,8 +138,8 @@ export default function DashboardPage() {
                             <td className="px-4 py-4 text-body-md">{t.date}</td>
                             <td className="px-4 py-4 text-body-md">{t.category}</td>
                             <td className="px-4 py-4 text-body-md">{t.weightGram != null ? `${t.weightGram} g` : "—"}</td>
-                            <td className="px-4 py-4 font-bold text-primary-container">
-                              {t.points ? `+${t.points.toLocaleString("id-ID")}` : "—"}
+                            <td className={`px-4 py-4 font-bold ${t.type === "redeem" ? "text-error" : "text-primary-container"}`}>
+                              {t.points ? `${t.type === "redeem" ? "-" : "+"}${t.points.toLocaleString("id-ID")}` : "—"}
                             </td>
                             <td className="px-4 py-4"><StatusBadge status={t.status} /></td>
                           </tr>

@@ -55,7 +55,9 @@
     "adminLogin": "Login sebagai Admin",
     "errorInvalid": "Email atau password salah.",
     "phaseValidating": "Memvalidasi akun...",
-    "phaseRedirecting": "Mengarahkan ke Portal Admin..."
+    "phaseRedirecting": "Mengarahkan ke Portal Admin...",
+    "suspendedTitle": "Akunmu ditangguhkan",
+    "suspendedDesc": "Akun kamu tidak dapat mengakses layanan saat ini. Hubungi admin untuk informasi lebih lanjut."
   },
   "register": {
     "title": "Bergabung Sekarang",

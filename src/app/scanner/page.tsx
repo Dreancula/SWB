@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import jsQR from "jsqr";
+import Swal from "sweetalert2";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
-import { analyzeWaste, submitDeposit, scanQr } from "@/lib/api";
+import { analyzeWaste, submitDeposit, scanQr, getLocations } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/ui/Toast";
@@ -253,20 +254,28 @@ export default function ScannerPage() {
 
   async function handleSubmit() {
     if (!result) return;
-    const savedLocationId =
-      typeof window !== "undefined" ? localStorage.getItem("eco_selected_location") : null;
-    if (!savedLocationId) {
-      showToast(t("scanner.noLocation"), "info");
-      router.push("/locations");
-      return;
-    }
     setPhase("submitting");
     try {
+      const { selectedLocation } = await getLocations();
+      if (!selectedLocation) {
+        setPhase("result");
+        Swal.fire({
+          icon: "warning",
+          title: "Lokasi Belum Dipilih",
+          text: "Silahkan pilih lokasi terlebih dahulu.",
+          confirmButtonText: "Pilih Lokasi",
+          confirmButtonColor: "#006d37"
+        }).then(() => {
+          router.push("/locations");
+        });
+        return;
+      }
+
       await submitDeposit({
         productName: result.productName,
         category: result.category,
         weightGrams: result.estimatedWeight ?? 0,
-        locationId: result.locationId,
+        locationId: result.locationId ?? selectedLocation.id,
         categoryId: result.categoryId,
         confidence: result.confidence,
         message: result.message,

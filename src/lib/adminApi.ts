@@ -12,6 +12,8 @@ import type {
   AdminRewardOrder,
   RewardOrderStatus,
   ActivityLog,
+  AdminLocation,
+  ProductLocationStock,
 } from "./adminTypes";
 import type { ChatMessage } from "./types";
 
@@ -422,38 +424,94 @@ export async function verifyAdminPin(pin: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 function mapProduct(p: Record<string, unknown>): AdminProduct {
+  const rawStocks = Array.isArray(p.location_stocks)
+    ? (p.location_stocks as Record<string, unknown>[])
+    : [];
+  const locationStocks: ProductLocationStock[] = rawStocks.map((ls) => {
+    const loc = ls.location as Record<string, unknown> | undefined;
+    return {
+      id: Number(ls.id ?? 0),
+      productId: String(p.id ?? ""),
+      locationId: Number(ls.location_id ?? 0),
+      stock: Number(ls.stock ?? 0),
+      location: {
+        id: Number(loc?.id ?? ls.location_id ?? 0),
+        locationName: String(loc?.location_name ?? ""),
+        address: String(loc?.address ?? ""),
+      },
+    };
+  });
   return {
     id: String(p.id ?? ""),
     name: String(p.product_name ?? p.name ?? ""),
     stock: Number(p.stock ?? 0),
     pointCost: Number(p.required_points ?? p.point_cost ?? 0),
     imageUrl: (p.image_url ?? p.imageUrl ?? null) as string | null,
+    locationStocks,
   };
 }
 
-export async function getAdminProducts(): Promise<AdminProduct[]> {
+function mapLocation(loc: Record<string, unknown>): AdminLocation {
+  return {
+    id: Number(loc.id ?? 0),
+    locationName: String(loc.location_name ?? ""),
+    address: String(loc.address ?? ""),
+    latitude: Number(loc.latitude ?? 0),
+    longitude: Number(loc.longitude ?? 0),
+    currentCapacity: Number(loc.current_capacity ?? 0),
+    maxCapacity: Number(loc.max_capacity ?? 0),
+    status: String(loc.status ?? ""),
+    createdAt: String(loc.created_at ?? ""),
+  };
+}
+
+export async function getAdminStockData(): Promise<{ products: AdminProduct[]; locations: AdminLocation[] }> {
   const res = await fetch(`${API_URL}/admin/stock`, { headers: authHeaders() });
-  if (!res.ok) return [];
+  if (!res.ok) return { products: [], locations: [] };
   const data = await res.json();
   const payload = (data.data ?? data) as Record<string, unknown>;
-  const list = Array.isArray(payload)
+  const productList = Array.isArray(payload)
     ? payload
     : Array.isArray(payload.products)
       ? (payload.products as Record<string, unknown>[])
       : [];
-  return list.map(mapProduct);
+  const locationList = Array.isArray(payload.locations)
+    ? (payload.locations as Record<string, unknown>[])
+    : [];
+  return {
+    products: productList.map(mapProduct),
+    locations: locationList.map(mapLocation),
+  };
+}
+
+export async function getAdminProducts(): Promise<AdminProduct[]> {
+  return (await getAdminStockData()).products;
+}
+
+export async function updateProductLocationStock(
+  productId: string,
+  locationId: number,
+  stock: number
+): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/stock/${productId}/update`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ location_id: locationId, stock }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui stok");
+  }
 }
 
 export async function createProduct(payload: {
   name: string;
   requiredPoints: number;
-  stock: number;
   image?: File | null;
 }): Promise<AdminProduct> {
   const formData = new FormData();
   formData.append("product_name", payload.name);
   formData.append("required_points", payload.requiredPoints.toString());
-  formData.append("stock", payload.stock.toString());
   if (payload.image) {
     formData.append("image", payload.image);
   }
@@ -479,12 +537,11 @@ export async function createProduct(payload: {
 
 export async function updateProduct(
   id: string,
-  payload: { name: string; stock: number; pointCost: number; image?: File | null }
+  payload: { name: string; pointCost: number; image?: File | null }
 ): Promise<void> {
   const formData = new FormData();
   formData.append("product_name", payload.name);
   formData.append("required_points", payload.pointCost.toString());
-  formData.append("stock", payload.stock.toString());
   if (payload.image) {
     formData.append("image", payload.image);
   }
@@ -570,6 +627,7 @@ export async function getAdminChatMessages(chatId: number): Promise<ChatMessage[
 // ---------------------------------------------------------------------------
 
 const STATUS_MAP: Record<string, RewardOrderStatus> = {
+  process:    "menunggu",
   pending:    "menunggu",
   menunggu:   "menunggu",
   dikemas:    "dikemas",
@@ -589,6 +647,7 @@ export async function getAdminRewardOrders(): Promise<AdminRewardOrder[]> {
       : [];
   return list.map((o) => {
     const user = o.user as Record<string, unknown> | undefined;
+    const loc = o.pickup_location as Record<string, unknown> | undefined;
     return {
       id: String(o.id ?? ""),
       userId: String(o.user_id ?? user?.id ?? ""),
@@ -598,8 +657,11 @@ export async function getAdminRewardOrders(): Promise<AdminRewardOrder[]> {
       qty: Number(o.quantity ?? 1),
       pointPerItem: Number(o.point_per_item ?? 0),
       totalPoints: Number(o.total_points ?? 0),
-      status: STATUS_MAP[String(o.status ?? "pending")] ?? "menunggu",
+      status: STATUS_MAP[String(o.status ?? "process")] ?? "menunggu",
       createdAt: String(o.created_at ?? ""),
+      pickupCode: o.pickup_code ? String(o.pickup_code) : undefined,
+      pickupLocationName: loc?.location_name ? String(loc.location_name) : undefined,
+      pickupLocationId: loc?.id ? Number(loc.id) : undefined,
     };
   });
 }
@@ -618,6 +680,18 @@ export async function updateRewardOrderStatus(
   }
 }
 
+export async function verifyRewardPickup(id: string, code: string): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/rewards/${id}/verify`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Verifikasi gagal");
+  }
+}
+
 export async function sendAdminMessage(chatId: number, message: string): Promise<void> {
   const form = new FormData();
   form.append("message", message);
@@ -631,3 +705,104 @@ export async function sendAdminMessage(chatId: number, message: string): Promise
     throw new Error((err as { message?: string }).message ?? "Gagal mengirim pesan");
   }
 }
+
+// ---------------------------------------------------------------------------
+// Locations
+// ---------------------------------------------------------------------------
+
+export async function getAdminLocations(): Promise<AdminLocation[]> {
+  const res = await fetch(`${API_URL}/admin/locations`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Gagal mengambil data lokasi");
+  const data = await res.json();
+  const list = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+  return list.map((loc: Record<string, unknown>) => ({
+    id: Number(loc.id ?? 0),
+    locationName: String(loc.location_name ?? ""),
+    address: String(loc.address ?? ""),
+    latitude: Number(loc.latitude ?? 0),
+    longitude: Number(loc.longitude ?? 0),
+    currentCapacity: Number(loc.current_capacity ?? 0),
+    maxCapacity: Number(loc.max_capacity ?? 0),
+    status: String(loc.status ?? ""),
+    createdAt: String(loc.created_at ?? ""),
+  }));
+}
+
+export async function createAdminLocation(payload: {
+  locationName: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+}): Promise<AdminLocation> {
+  const form = new FormData();
+  form.append("location_name", payload.locationName);
+  form.append("address", payload.address);
+  form.append("latitude", String(payload.latitude));
+  form.append("longitude", String(payload.longitude));
+
+  const res = await fetch(`${API_URL}/admin/locations`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal menambahkan lokasi");
+  }
+  const data = await res.json();
+  const loc = (data.data ?? data) as Record<string, unknown>;
+  return {
+    id: Number(loc.id ?? 0),
+    locationName: String(loc.location_name ?? ""),
+    address: String(loc.address ?? ""),
+    latitude: Number(loc.latitude ?? 0),
+    longitude: Number(loc.longitude ?? 0),
+  };
+}
+
+export async function updateAdminLocation(
+  id: number | string,
+  payload: {
+    locationName: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  }
+): Promise<AdminLocation> {
+  const form = new FormData();
+  form.append("location_name", payload.locationName);
+  form.append("address", payload.address);
+  form.append("latitude", String(payload.latitude));
+  form.append("longitude", String(payload.longitude));
+
+  const res = await fetch(`${API_URL}/admin/locations/${id}/update`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal memperbarui lokasi");
+  }
+  const data = await res.json();
+  const loc = (data.data ?? data) as Record<string, unknown>;
+  return {
+    id: Number(loc.id ?? 0),
+    locationName: String(loc.location_name ?? ""),
+    address: String(loc.address ?? ""),
+    latitude: Number(loc.latitude ?? 0),
+    longitude: Number(loc.longitude ?? 0),
+  };
+}
+
+export async function deleteAdminLocation(id: number | string): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/locations/${id}/delete`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Gagal menghapus lokasi");
+  }
+}
+

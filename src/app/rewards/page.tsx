@@ -23,6 +23,7 @@ export default function RewardsPage() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [redeeming, setRedeeming] = useState<Reward | null>(null);
   const [qty, setQty] = useState(1);
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
   const [successName, setSuccessName] = useState<string | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const BALANCE = user?.pointBalance ?? 0;
@@ -35,11 +36,23 @@ export default function RewardsPage() {
 
   function openRedeem(r: Reward) {
     setQty(1);
+    setSelectedLocationId(null);
     setRedeeming(r);
   }
 
+  function handleQtyChange(next: number) {
+    setQty(next);
+    // Reset location if it no longer has enough stock for the new qty
+    if (selectedLocationId !== null && redeeming) {
+      const locStock = redeeming.locationStocks.find((ls) => ls.locationId === selectedLocationId);
+      if (!locStock || locStock.stock < next) {
+        setSelectedLocationId(null);
+      }
+    }
+  }
+
   async function confirmRedeem() {
-    if (!redeeming) return;
+    if (!redeeming || selectedLocationId === null) return;
     if (user?.hasPin) {
       setShowPinModal(true);
       return;
@@ -48,13 +61,14 @@ export default function RewardsPage() {
   }
 
   async function performRedeem() {
-    if (!redeeming) return;
+    if (!redeeming || selectedLocationId === null) return;
     const name = redeeming.name;
+    const locId = selectedLocationId;
     setRedeeming(null);
     try {
-      await redeemReward(redeeming.id, qty);
+      await redeemReward(redeeming.id, qty, locId);
       setSuccessName(name);
-      refreshUser(); // Assuming refreshUser is imported or available to update point balance
+      refreshUser();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Penukaran reward gagal", "error");
     }
@@ -115,6 +129,7 @@ export default function RewardsPage() {
             const stockPct = Math.round((r.stock / r.stockMax) * 100);
             const lowStock = stockPct < 20;
             const affordable = BALANCE >= r.pointCost;
+            const hasStock = r.stock > 0;
             return (
               <article
                 key={r.id}
@@ -170,11 +185,11 @@ export default function RewardsPage() {
                     </div>
                     <button
                       onClick={() => openRedeem(r)}
-                      disabled={!affordable}
+                      disabled={!affordable || !hasStock}
                       className="w-full py-4 bg-primary text-on-primary rounded-xl font-button text-button hover:bg-surface-tint active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Icon name="redeem" />
-                      {affordable ? t("rewards.redeemBtn") : t("rewards.insufficientPoints")}
+                      {!hasStock ? "Stok Habis" : affordable ? t("rewards.redeemBtn") : t("rewards.insufficientPoints")}
                     </button>
                   </div>
                 </div>
@@ -184,7 +199,7 @@ export default function RewardsPage() {
         </div>
       </div>
 
-      {/* ── Confirm + Quantity dialog ── */}
+      {/* ── Confirm + Quantity + Location dialog ── */}
       {redeeming && (
         <Overlay onClose={() => setRedeeming(null)}>
           <div className="flex items-center gap-4 mb-6">
@@ -210,7 +225,7 @@ export default function RewardsPage() {
             <p className="text-label-sm font-label-sm text-outline mb-3">{t("rewards.qty")}</p>
             <div className="flex items-center justify-between">
               <button
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                onClick={() => handleQtyChange(Math.max(1, qty - 1))}
                 className="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-surface-variant transition-colors text-on-surface disabled:opacity-40"
                 disabled={qty <= 1}
               >
@@ -220,7 +235,7 @@ export default function RewardsPage() {
                 {qty}
               </span>
               <button
-                onClick={() => setQty((q) => Math.min(redeeming.stock, q + 1))}
+                onClick={() => handleQtyChange(Math.min(redeeming.stock, qty + 1))}
                 className="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-surface-variant transition-colors text-on-surface disabled:opacity-40"
                 disabled={qty >= redeeming.stock}
               >
@@ -229,8 +244,54 @@ export default function RewardsPage() {
             </div>
           </div>
 
+          {/* Location picker */}
+          <div className="bg-surface-container-low border border-outline-variant rounded-xl p-4 mb-4">
+            <p className="text-label-sm font-label-sm text-outline mb-3">Posko Pengambilan</p>
+            {redeeming.locationStocks.length === 0 ? (
+              <p className="text-body-sm text-on-surface-variant text-center py-2">
+                Stok belum tersedia di posko manapun
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {redeeming.locationStocks.map((ls) => {
+                  const enough = ls.stock >= qty;
+                  const selected = selectedLocationId === ls.locationId;
+                  return (
+                    <button
+                      key={ls.locationId}
+                      onClick={() => enough && setSelectedLocationId(ls.locationId)}
+                      disabled={!enough}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left ${
+                        selected
+                          ? "border-primary bg-primary/10"
+                          : enough
+                            ? "border-outline-variant hover:border-primary/50 hover:bg-surface-container"
+                            : "border-outline-variant opacity-40 cursor-not-allowed"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? "border-primary" : "border-outline-variant"}`}>
+                          {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                        </div>
+                        <div>
+                          <p className="text-body-md font-body-md text-on-surface font-medium">{ls.locationName}</p>
+                          {ls.address && (
+                            <p className="text-label-sm font-label-sm text-on-surface-variant line-clamp-1">{ls.address}</p>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-label-sm font-label-sm font-bold shrink-0 ml-2 ${enough ? "text-primary" : "text-on-surface-variant"}`}>
+                        {ls.stock} unit
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Point summary */}
-          <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl p-4 mb-4">
             <div className="text-body-md font-body-md text-on-surface-variant">
               {t("rewards.totalDeducted")}
             </div>
@@ -247,6 +308,13 @@ export default function RewardsPage() {
             </p>
           )}
 
+          {selectedLocationId === null && redeeming.locationStocks.length > 0 && (
+            <p className="text-on-surface-variant text-label-sm font-label-sm mb-4 flex items-center gap-1">
+              <Icon name="info" className="text-base" />
+              Pilih posko pengambilan untuk melanjutkan
+            </p>
+          )}
+
           <div className="flex gap-3">
             <button
               onClick={() => setRedeeming(null)}
@@ -256,7 +324,7 @@ export default function RewardsPage() {
             </button>
             <button
               onClick={confirmRedeem}
-              disabled={BALANCE < redeeming.pointCost * qty}
+              disabled={BALANCE < redeeming.pointCost * qty || selectedLocationId === null}
               className="flex-1 py-3 bg-primary text-on-primary rounded-xl font-button hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Icon name="redeem" />

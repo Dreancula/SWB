@@ -55,7 +55,9 @@
     "adminLogin": "Login as Admin",
     "errorInvalid": "Invalid email or password.",
     "phaseValidating": "Validating account...",
-    "phaseRedirecting": "Redirecting to Admin Portal..."
+    "phaseRedirecting": "Redirecting to Admin Portal...",
+    "suspendedTitle": "Account suspended",
+    "suspendedDesc": "Your account cannot access services at this time. Contact admin for more information."
   },
   "register": {
     "title": "Join Now",
