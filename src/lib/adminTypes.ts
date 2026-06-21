@@ -41,6 +41,7 @@ export interface ProductLocationStock {
 export interface AdminProduct {
   id: string;
   name: string;
+  category: string;
   stock: number;
   pointCost: number;
   imageUrl?: string | null;

@@ -12,14 +12,13 @@ import Toast from "@/components/ui/Toast";
 import type { Reward } from "@/lib/types";
 import PinVerificationModal from "@/components/PinVerificationModal";
 
-const CATEGORIES = ["All", "Accessories", "Apparel", "Eco-Home"];
-
 export default function RewardsPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user, refreshUser } = useAuth();
   const { toast, showToast } = useToast();
   const [category, setCategory] = useState("All");
+  const [allRewards, setAllRewards] = useState<Reward[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [redeeming, setRedeeming] = useState<Reward | null>(null);
   const [qty, setQty] = useState(1);
@@ -28,11 +27,20 @@ export default function RewardsPage() {
   const [showPinModal, setShowPinModal] = useState(false);
   const BALANCE = user?.pointBalance ?? 0;
 
+  const categories = ["All", ...Array.from(new Set(allRewards.map((r) => r.category).filter(Boolean)))];
+
   useEffect(() => {
-    getRewards(category)
-      .then(setRewards)
+    getRewards("All")
+      .then((data) => {
+        setAllRewards(data);
+        setRewards(data);
+      })
       .catch((e) => showToast(e instanceof Error ? e.message : "Gagal memuat reward", "error"));
-  }, [category, showToast]);
+  }, [showToast]);
+
+  useEffect(() => {
+    setRewards(category === "All" ? allRewards : allRewards.filter((r) => r.category === category));
+  }, [category, allRewards]);
 
   function openRedeem(r: Reward) {
     setQty(1);
@@ -108,7 +116,7 @@ export default function RewardsPage() {
 
         {/* Filter */}
         <div className="flex items-center gap-4 mb-stack-lg overflow-x-auto pb-2 hide-scrollbar">
-          {CATEGORIES.map((c) => (
+          {categories.map((c: string) => (
             <button
               key={c}
               onClick={() => setCategory(c)}

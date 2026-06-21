@@ -14,8 +14,9 @@ import type { AdminProduct, AdminLocation } from "@/lib/adminTypes";
 import { useTranslation } from "react-i18next";
 
 const NO_IMAGE = "/images/noimages.svg";
+const REWARD_CATEGORIES = ["Elektronik", "Pangan", "Wearables", "Aksesoris", "Peralatan Rumah"];
 
-type EditEntry = { name: string; pointCost: number; image?: File | null; imageUrl?: string | null; imagePreview?: string | null };
+type EditEntry = { name: string; category: string; pointCost: number; image?: File | null; imageUrl?: string | null; imagePreview?: string | null };
 type Toast = { msg: string; type: "success" | "error" };
 type LocationStockEdits = Record<string, Record<number, number>>;
 
@@ -33,7 +34,7 @@ export default function AdminStockPage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newProduct, setNewProduct] = useState<{ name: string; pointCost: number; image: File | null; imagePreview: string | null }>({ name: "", pointCost: 0, image: null, imagePreview: null });
+  const [newProduct, setNewProduct] = useState<{ name: string; category: string; pointCost: number; image: File | null; imagePreview: string | null }>({ name: "", category: "", pointCost: 0, image: null, imagePreview: null });
 
   const { t } = useTranslation();
 
@@ -41,7 +42,7 @@ export default function AdminStockPage() {
     const map: Record<string, EditEntry> = {};
     const locStocks: LocationStockEdits = {};
     productList.forEach((p) => {
-      map[p.id] = { name: p.name, pointCost: p.pointCost, imageUrl: p.imageUrl };
+      map[p.id] = { name: p.name, category: p.category, pointCost: p.pointCost, imageUrl: p.imageUrl };
       locStocks[p.id] = Object.fromEntries(p.locationStocks.map((ls) => [ls.locationId, ls.stock]));
     });
     setEditMap(map);
@@ -113,7 +114,7 @@ export default function AdminStockPage() {
     if (!edit) return;
     setUpdating(product.id);
     try {
-      await updateProduct(product.id, { name: edit.name, pointCost: edit.pointCost, image: edit.image });
+      await updateProduct(product.id, { name: edit.name, category: edit.category, pointCost: edit.pointCost, image: edit.image });
       await refreshData();
       showToast("Produk berhasil diperbarui");
     } catch (e) {
@@ -156,9 +157,9 @@ export default function AdminStockPage() {
     if (!newProduct.name.trim()) return;
     setCreating(true);
     try {
-      await createProduct({ name: newProduct.name.trim(), requiredPoints: newProduct.pointCost, image: newProduct.image });
+      await createProduct({ name: newProduct.name.trim(), category: newProduct.category.trim() || undefined, requiredPoints: newProduct.pointCost, image: newProduct.image });
       await refreshData();
-      setNewProduct({ name: "", pointCost: 0, image: null, imagePreview: null });
+      setNewProduct({ name: "", category: "", pointCost: 0, image: null, imagePreview: null });
       setShowCreate(false);
       showToast("Produk baru berhasil ditambahkan");
     } catch (e) {
@@ -243,12 +244,22 @@ export default function AdminStockPage() {
                       </div>
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(product.id, e.target.files?.[0] || null)} />
                     </label>
-                    <input
-                      type="text"
-                      value={edit.name}
-                      onChange={(e) => setField(product.id, "name", e.target.value)}
-                      className="flex-1 font-bold text-on-surface bg-transparent border-b border-outline-variant focus:outline-none focus:border-primary py-0.5"
-                    />
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={edit.name}
+                        onChange={(e) => setField(product.id, "name", e.target.value)}
+                        className="w-full font-bold text-on-surface bg-transparent border-b border-outline-variant focus:outline-none focus:border-primary py-0.5"
+                      />
+                      <select
+                        value={edit.category}
+                        onChange={(e) => setField(product.id, "category", e.target.value)}
+                        className="w-full text-xs text-on-surface-variant bg-transparent border-b border-outline-variant/40 focus:outline-none focus:border-primary py-0.5 mt-1"
+                      >
+                        <option value="">— Pilih Kategori —</option>
+                        {REWARD_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
                   </div>
 
                   {/* Total stock + expand */}
@@ -395,12 +406,22 @@ export default function AdminStockPage() {
                               </div>
                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(product.id, e.target.files?.[0] || null)} />
                             </label>
-                            <input
-                              type="text"
-                              value={edit.name}
-                              onChange={(e) => setField(product.id, "name", e.target.value)}
-                              className="font-bold text-on-surface bg-transparent border-b border-outline-variant focus:outline-none focus:border-primary py-0.5 w-full max-w-[200px]"
-                            />
+                            <div className="min-w-0">
+                              <input
+                                type="text"
+                                value={edit.name}
+                                onChange={(e) => setField(product.id, "name", e.target.value)}
+                                className="font-bold text-on-surface bg-transparent border-b border-outline-variant focus:outline-none focus:border-primary py-0.5 w-full max-w-[200px]"
+                              />
+                              <select
+                                value={edit.category}
+                                onChange={(e) => setField(product.id, "category", e.target.value)}
+                                className="text-xs text-on-surface-variant bg-transparent border-b border-outline-variant/40 focus:outline-none focus:border-primary py-0.5 w-full max-w-[200px] mt-0.5"
+                              >
+                                <option value="">— Kategori —</option>
+                                {REWARD_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            </div>
                           </div>
                         </td>
 
@@ -547,6 +568,17 @@ export default function AdminStockPage() {
                 />
               </div>
               <div className="space-y-1">
+                <label className="text-label-sm font-label-sm text-outline uppercase text-xs font-bold">Kategori</label>
+                <select
+                  value={newProduct.category}
+                  onChange={(e) => setNewProduct((p) => ({ ...p, category: e.target.value }))}
+                  className="w-full p-3 rounded-xl border border-outline bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="">— Pilih Kategori —</option>
+                  {REWARD_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
                 <label className="text-label-sm font-label-sm text-outline uppercase text-xs font-bold">{t("admin.stock.pointsLabel")}</label>
                 <div className="relative">
                   <input
@@ -561,7 +593,7 @@ export default function AdminStockPage() {
               </div>
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => { setShowCreate(false); setNewProduct({ name: "", pointCost: 0, image: null, imagePreview: null }); }}
+                  onClick={() => { setShowCreate(false); setNewProduct({ name: "", category: "", pointCost: 0, image: null, imagePreview: null }); }}
                   className="flex-1 py-3 border border-outline text-on-surface rounded-xl font-button text-sm hover:bg-surface-variant transition-colors"
                 >
                   {t("admin.stock.cancel")}

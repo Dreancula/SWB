@@ -444,6 +444,7 @@ function mapProduct(p: Record<string, unknown>): AdminProduct {
   return {
     id: String(p.id ?? ""),
     name: String(p.product_name ?? p.name ?? ""),
+    category: String(p.category ?? ""),
     stock: Number(p.stock ?? 0),
     pointCost: Number(p.required_points ?? p.point_cost ?? 0),
     imageUrl: (p.image_url ?? p.imageUrl ?? null) as string | null,
@@ -506,11 +507,13 @@ export async function updateProductLocationStock(
 
 export async function createProduct(payload: {
   name: string;
+  category?: string;
   requiredPoints: number;
   image?: File | null;
 }): Promise<AdminProduct> {
   const formData = new FormData();
   formData.append("product_name", payload.name);
+  if (payload.category) formData.append("category", payload.category);
   formData.append("required_points", payload.requiredPoints.toString());
   if (payload.image) {
     formData.append("image", payload.image);
@@ -537,10 +540,11 @@ export async function createProduct(payload: {
 
 export async function updateProduct(
   id: string,
-  payload: { name: string; pointCost: number; image?: File | null }
+  payload: { name: string; category?: string; pointCost: number; image?: File | null }
 ): Promise<void> {
   const formData = new FormData();
   formData.append("product_name", payload.name);
+  if (payload.category !== undefined) formData.append("category", payload.category);
   formData.append("required_points", payload.pointCost.toString());
   if (payload.image) {
     formData.append("image", payload.image);

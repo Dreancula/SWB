@@ -58,7 +58,7 @@ function LocationModal({
         onSave(res);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menyimpan lokasi");
+      setError(e instanceof Error ? e.message : "Failed to save location");
     } finally {
       setSaving(false);
     }
@@ -70,10 +70,10 @@ function LocationModal({
         <div className="bg-primary p-5 shrink-0 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-white text-lg">
-              {isEdit ? "Edit Lokasi" : "Tambah Lokasi"}
+              {isEdit ? "Edit Location" : "Add Location"}
             </h3>
             <p className="text-white/80 text-xs mt-0.5">
-              Atur nama, alamat, dan titik peta posko
+              Set the name, address, and map pin for the deposit point
             </p>
           </div>
           <button
@@ -87,25 +87,25 @@ function LocationModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-bold text-outline uppercase">
-                Nama Lokasi
+                Location Name
               </label>
               <input
                 type="text"
                 value={form.locationName}
                 onChange={(e) => setForm((p) => ({ ...p, locationName: e.target.value }))}
-                placeholder="Misal: Posko Harmoni Eco"
+                placeholder="e.g. Smart Eco Harmoni"
                 className="w-full p-3 rounded-xl border border-outline bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
               />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-outline uppercase">
-                Alamat Lengkap
+                Full Address
               </label>
               <input
                 type="text"
                 value={form.address}
                 onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-                placeholder="Alamat jalan..."
+                placeholder="Street address..."
                 className="w-full p-3 rounded-xl border border-outline bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
               />
             </div>
@@ -114,7 +114,7 @@ function LocationModal({
           <div className="space-y-1">
             <label className="text-xs font-bold text-outline uppercase flex items-center gap-2">
               <Icon name="pin_drop" style={{ fontSize: 16 }} className="text-primary" />
-              Tentukan Titik di Peta (Klik Map)
+              Set Pin on Map (Click to Place)
             </label>
             <div className="relative w-full h-[300px] rounded-xl overflow-hidden border border-outline bg-surface-variant">
               <Map
@@ -132,7 +132,7 @@ function LocationModal({
                 <Marker longitude={form.longitude} latitude={form.latitude} anchor="bottom">
                   <div className="flex flex-col items-center">
                     <div className="bg-primary px-3 py-1.5 rounded-lg shadow-lg text-xs font-bold text-white mb-1 whitespace-nowrap">
-                      {form.locationName || "Titik Posko"}
+                      {form.locationName || "Drop Point"}
                     </div>
                     <Icon
                       name="location_on"
@@ -161,7 +161,7 @@ function LocationModal({
               onClick={onClose}
               className="flex-1 py-3 border border-outline text-on-surface rounded-xl font-button text-sm hover:bg-surface-variant transition-colors"
             >
-              Batal
+              Cancel
             </button>
             <button
               onClick={handleSave}
@@ -169,7 +169,7 @@ function LocationModal({
               className="flex-1 py-3 bg-primary text-on-primary rounded-xl font-button text-sm hover:brightness-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {saving && <Icon name="sync" className="animate-spin" style={{ fontSize: 16 }} />}
-              {saving ? "Menyimpan..." : "Simpan Lokasi"}
+              {saving ? "Saving..." : "Save Location"}
             </button>
           </div>
         </div>
@@ -194,23 +194,23 @@ export default function AdminLocationsPage() {
 
   async function handleDelete(loc: AdminLocation) {
     const res = await Swal.fire({
-      title: "Hapus Lokasi?",
-      text: `Anda yakin ingin menghapus lokasi "${loc.locationName}"? Tindakan ini tidak bisa dibatalkan.`,
+      title: "Delete Location?",
+      text: `Are you sure you want to delete "${loc.locationName}"? This action cannot be undone.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
       cancelButtonColor: "#6c7b6d",
-      confirmButtonText: "Ya, Hapus!",
-      cancelButtonText: "Batal",
+      confirmButtonText: "Yes, Delete!",
+      cancelButtonText: "Cancel",
     });
 
     if (res.isConfirmed) {
       try {
         await deleteAdminLocation(loc.id);
         setLocations((prev) => prev.filter((l) => l.id !== loc.id));
-        Swal.fire("Terhapus!", "Lokasi berhasil dihapus.", "success");
+        Swal.fire("Deleted!", "Location has been deleted.", "success");
       } catch (e) {
-        Swal.fire("Gagal", e instanceof Error ? e.message : "Gagal menghapus", "error");
+        Swal.fire("Failed", e instanceof Error ? e.message : "Failed to delete", "error");
       }
     }
   }
@@ -226,10 +226,10 @@ export default function AdminLocationsPage() {
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 md:px-10 py-4 bg-surface border-b border-surface-variant">
         <div>
           <h1 className="text-headline-md font-headline-md font-bold text-primary">
-            Manajemen Lokasi
+            Location Management
           </h1>
           <p className="text-label-sm font-label-sm text-on-surface-variant hidden md:block">
-            Kelola titik posko dan kapasitas untuk user menyetor sampah
+            Manage deposit points and capacity for users to submit waste
           </p>
         </div>
         <button
@@ -237,7 +237,7 @@ export default function AdminLocationsPage() {
           className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2 rounded-xl font-button text-sm shadow hover:brightness-95 active:scale-95 transition-all"
         >
           <Icon name="add_location" style={{ fontSize: 18 }} />
-          <span className="hidden sm:inline">Tambah Lokasi</span>
+          <span className="hidden sm:inline">Add Location</span>
         </button>
       </header>
 
@@ -252,7 +252,7 @@ export default function AdminLocationsPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama lokasi atau alamat..."
+            placeholder="Search by name or address..."
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
           />
         </div>
@@ -311,7 +311,7 @@ export default function AdminLocationsPage() {
                     onClick={() => handleDelete(loc)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-error/30 text-error rounded-lg text-xs font-bold hover:bg-error-container transition-colors"
                   >
-                    <Icon name="delete" style={{ fontSize: 16 }} /> Hapus
+                    <Icon name="delete" style={{ fontSize: 16 }} /> Delete
                   </button>
                 </div>
               </div>
@@ -330,10 +330,10 @@ export default function AdminLocationsPage() {
           onSave={(updated) => {
             if (editLoc) {
               setLocations((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-              Swal.fire("Berhasil", "Lokasi berhasil diperbarui", "success");
+              Swal.fire("Success", "Location updated successfully.", "success");
             } else {
               setLocations((prev) => [updated, ...prev]);
-              Swal.fire("Berhasil", "Lokasi baru berhasil ditambahkan", "success");
+              Swal.fire("Success", "New location added successfully.", "success");
             }
             setShowModal(false);
             setEditLoc(null);
