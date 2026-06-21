@@ -26,8 +26,8 @@ export default function AdminSideNav() {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col h-screen sticky top-0 left-0 p-4 w-64 bg-surface-container-low border-r border-surface-variant shrink-0">
         <div className="flex items-center gap-3 mb-8 px-4">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <Icon name="admin_panel_settings" fill className="text-on-primary" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
+            <img src="/logo.svg" alt="Smart Eco Bank" className="w-full h-full object-cover" />
           </div>
           <div>
             <p className="font-bold text-primary leading-tight" style={{ fontSize: 18 }}>Admin Panel</p>

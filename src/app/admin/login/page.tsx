@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import { adminLogin, adminLogout, getAdminProfile } from "@/lib/adminApi";
 import PinVerificationModal from "@/components/PinVerificationModal";
@@ -17,6 +18,18 @@ export default function AdminLoginPage() {
   const [showPass, setShowPass] = useState(false);
 
   const [showPinModal, setShowPinModal] = useState(false);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("admin_prefill");
+    if (raw) {
+      try {
+        const { email: e, password: p } = JSON.parse(raw) as { email: string; password: string };
+        if (e) setEmail(e);
+        if (p) setPassword(p);
+      } catch {}
+      sessionStorage.removeItem("admin_prefill");
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,10 +72,17 @@ export default function AdminLoginPage() {
     <>
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="w-full max-w-md">
+          <Link
+            href="/login"
+            className="flex items-center gap-1.5 text-sm text-outline hover:text-primary transition-colors mb-4 w-fit"
+          >
+            <Icon name="arrow_back" style={{ fontSize: 16 }} />
+            {t("admin.login.backToHome")}
+          </Link>
           {/* Brand header */}
           <div className="eco-gradient rounded-t-2xl p-8 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4">
-              <Icon name="admin_panel_settings" fill className="text-white" style={{ fontSize: 36 }} />
+            <div className="w-16 h-16 rounded-2xl overflow-hidden mx-auto mb-4 shadow-md">
+              <img src="/logo.svg" alt="Smart Eco Bank" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-headline-md font-headline-md text-white font-bold">Smart Eco Bank</h1>
             <p className="text-white/80 text-label-sm font-label-sm uppercase tracking-widest mt-1">

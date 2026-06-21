@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import {
   getAdminProfile,
   updateAdminProfile,
   updateAdminPassword,
   updateAdminPin,
-  deleteAdminPhoto
+  deleteAdminPhoto,
+  adminLogout
 } from "@/lib/adminApi";
 import type { AdminProfile, ActivityLog } from "@/lib/adminTypes";
 import PinVerificationModal from "@/components/PinVerificationModal";
@@ -17,6 +19,7 @@ import { useTranslation } from "react-i18next";
 
 export default function AdminProfilePage() {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -53,6 +56,16 @@ export default function AdminProfilePage() {
   const [savingPin, setSavingPin] = useState(false);
 
   const [showPinForPassword, setShowPinForPassword] = useState(false);
+
+  async function handleLogout(e: React.MouseEvent) {
+    e.preventDefault();
+    try {
+      await adminLogout();
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+    router.push("/admin/login");
+  }
 
   useEffect(() => {
     fetchProfile();
@@ -199,13 +212,13 @@ export default function AdminProfilePage() {
     <>
       <header className="sticky top-0 z-40 flex justify-between items-center px-4 md:px-10 py-4 bg-surface border-b border-surface-variant">
         <h1 className="text-headline-md font-headline-md font-bold text-primary">Smart Eco Bank</h1>
-        <Link
-          href="/admin/login"
+        <button
+          onClick={handleLogout}
           className="flex items-center gap-2 px-3 py-2 text-on-surface-variant hover:text-primary transition-colors text-label-sm font-label-sm"
         >
           <Icon name="logout" style={{ fontSize: 18 }} />
           <span className="hidden md:inline">{t("admin.profile.logout")}</span>
-        </Link>
+        </button>
       </header>
 
       <div className="flex-1 px-4 md:px-10 py-6 md:py-8 overflow-y-auto">

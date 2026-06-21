@@ -57,18 +57,13 @@ export default function RegisterPage() {
     <div className="min-h-screen flex flex-col">
       <header className="w-full bg-surface-container-low">
         <nav className="max-w-7xl mx-auto h-20 px-container-padding-mobile md:px-container-padding-desktop flex justify-between items-center">
-          <div className="text-headline-md font-headline-md font-bold text-primary">
+          <div className="flex items-center gap-2 text-headline-md font-headline-md font-bold text-primary">
+            <img src="/logo.svg" alt="Smart Eco Bank" className="w-8 h-8 rounded-lg object-cover" />
             Smart Eco Bank
           </div>
           <div className="hidden md:flex items-center gap-stack-lg">
             <Link
-              href="/about"
-              className="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors"
-            >
-              {t("register.aboutUs")}
-            </Link>
-            <Link
-              href="/"
+              href="/login"
               className="px-6 py-2 bg-primary text-on-primary rounded-full font-button text-button hover:opacity-90 transition-opacity"
             >
               {t("register.signIn")}
@@ -224,7 +219,7 @@ export default function RegisterPage() {
 
                 <p className="text-center mt-stack-lg font-body-md text-on-surface-variant">
                   {t("register.loginPrompt")}{" "}
-                  <Link href="/" className="text-primary font-bold">
+                  <Link href="/login" className="text-primary font-bold">
                     {t("register.loginLink")}
                   </Link>
                 </p>

@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     api.setUnauthorizedHandler(() => {
       setUser(null);
-      router.push("/");
+      router.push("/login");
     });
   }, [router]);
 

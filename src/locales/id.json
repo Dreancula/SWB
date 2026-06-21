@@ -51,7 +51,11 @@
     "registerPrompt": "Belum punya akun?",
     "registerLink": "Daftar sekarang",
     "aboutUs": "About Us",
-    "signIn": "Masuk"
+    "signIn": "Masuk",
+    "adminLogin": "Login sebagai Admin",
+    "errorInvalid": "Email atau password salah.",
+    "phaseValidating": "Memvalidasi akun...",
+    "phaseRedirecting": "Mengarahkan ke Portal Admin..."
   },
   "register": {
     "title": "Bergabung Sekarang",
@@ -277,7 +281,8 @@
       "submit": "Masuk ke Admin Panel",
       "restricted": "Akses terbatas untuk admin resmi Smart Eco Bank",
       "error": "Email atau password salah.",
-      "pinCancelled": "Verifikasi dibatalkan."
+      "pinCancelled": "Verifikasi dibatalkan.",
+      "backToHome": "Kembali ke Halaman Utama"
     },
     "profile": {
       "title": "Profil Admin",

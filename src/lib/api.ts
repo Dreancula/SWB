@@ -28,8 +28,8 @@ export function setAuthToken(token: string | null) {
       document.cookie = `eco_token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
     } else {
       localStorage.removeItem("eco_token");
-      document.cookie = "eco_token=; path=/; max-age=0";
-      document.cookie = "eco_role=; path=/; max-age=0";
+      document.cookie = "eco_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      document.cookie = "eco_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
     }
   }
 }

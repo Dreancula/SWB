@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/", "/about", "/tentang", "/register", "/admin/login"];
+const PUBLIC_PATHS = ["/", "/login", "/tentang", "/register", "/admin/login"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -18,8 +18,9 @@ export function middleware(req: NextRequest) {
   const token = req.cookies.get("eco_token")?.value;
   const role = req.cookies.get("eco_role")?.value;
 
-  // Authenticated user hits login page → redirect to their dashboard
-  if (pathname === "/" && token) {
+  // Authenticated user hits any login page → redirect to their dashboard
+  const isLoginPage = pathname === "/login" || pathname === "/admin/login";
+  if (isLoginPage && token) {
     const dest = role === "admin" ? "/admin/verification" : "/dashboard";
     return NextResponse.redirect(new URL(dest, req.url));
   }
@@ -30,7 +31,7 @@ export function middleware(req: NextRequest) {
   }
 
   if (!token) {
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   // Admin routes require admin role

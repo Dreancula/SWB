@@ -26,8 +26,9 @@ export default function TopNavBar() {
         <div className="flex items-center gap-8">
           <Link
             href="/dashboard"
-            className="text-headline-md font-headline-md font-bold text-primary"
+            className="flex items-center gap-2 text-headline-md font-headline-md font-bold text-primary"
           >
+            <img src="/logo.svg" alt="Smart Eco Bank" className="w-8 h-8 rounded-lg object-cover" />
             Smart Eco Bank
           </Link>
           <nav className="hidden md:flex items-center gap-6">

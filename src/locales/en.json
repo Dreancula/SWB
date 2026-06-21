@@ -51,7 +51,11 @@
     "registerPrompt": "Don't have an account?",
     "registerLink": "Register now",
     "aboutUs": "About Us",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "adminLogin": "Login as Admin",
+    "errorInvalid": "Invalid email or password.",
+    "phaseValidating": "Validating account...",
+    "phaseRedirecting": "Redirecting to Admin Portal..."
   },
   "register": {
     "title": "Join Now",
@@ -277,7 +281,8 @@
       "submit": "Sign In to Admin Panel",
       "restricted": "Restricted access for official Smart Eco Bank admins",
       "error": "Invalid email or password.",
-      "pinCancelled": "Verification cancelled."
+      "pinCancelled": "Verification cancelled.",
+      "backToHome": "Back to Main Page"
     },
     "profile": {
       "title": "Admin Profile",
