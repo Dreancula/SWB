@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
 import { getTransactions } from "@/lib/api";
@@ -29,11 +30,12 @@ export default function HistoryPage() {
   ];
 
   const [filter, setFilter] = useState<"all" | "deposit" | "redeem">("all");
-  const [mobileTab, setMobileTab] = useState<"deposit" | "redeem">("deposit");
   const [searchQuery, setSearchQuery] = useState("");
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [totalPoint, setTotalPoint] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [mobileVisible, setMobileVisible] = useState(6);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Always load all — filter client-side (mobile tabs + desktop chips)
   useEffect(() => {
@@ -62,8 +64,21 @@ export default function HistoryPage() {
     return matchSearch(tx);
   });
 
-  // Mobile: driven by mobileTab
-  const mobileTxs = txs.filter((tx) => tx.type === mobileTab && matchSearch(tx));
+  const allMobileTxs = txs.filter(matchSearch);
+  const mobileTxs = allMobileTxs.slice(0, mobileVisible);
+  const hasMore = mobileVisible < allMobileTxs.length;
+
+  const onSentinel = useCallback((entries: IntersectionObserverEntry[]) => {
+    if (entries[0].isIntersecting) setMobileVisible((v) => v + 6);
+  }, []);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(onSentinel, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [onSentinel, loading]);
 
   return (
     <AppShell>
@@ -111,25 +126,19 @@ export default function HistoryPage() {
 
         {/* Mobile tabs */}
         <div className="md:hidden flex mb-4 border-b border-outline-variant">
-          {(["deposit", "redeem"] as const).map((tab) => {
-            const label = tab === "deposit" ? "Riwayat Setor" : "Reward Redeem";
-            const icon = tab === "deposit" ? "recycling" : "redeem";
-            const active = mobileTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setMobileTab(tab)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors border-b-2 -mb-px ${
-                  active
-                    ? "border-primary text-primary"
-                    : "border-transparent text-on-surface-variant hover:text-on-surface"
-                }`}
-              >
-                <Icon name={icon} fill={active} className="text-[18px]" />
-                {label}
-              </button>
-            );
-          })}
+          <button
+            className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors border-b-2 -mb-px border-primary text-primary"
+          >
+            <Icon name="receipt_long" fill className="text-[18px]" />
+            Riwayat
+          </button>
+          <Link
+            href="/rewards"
+            className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors border-b-2 -mb-px border-transparent text-on-surface-variant hover:text-on-surface"
+          >
+            <Icon name="redeem" className="text-[18px]" />
+            Reward Redeem
+          </Link>
         </div>
 
         {/* Mobile card list */}
@@ -137,8 +146,8 @@ export default function HistoryPage() {
           <div className="md:hidden space-y-3 mb-4">
             {mobileTxs.length === 0 && (
               <div className="text-center py-12 text-on-surface-variant">
-                <Icon name={mobileTab === "deposit" ? "recycling" : "redeem"} style={{ fontSize: 48 }} className="opacity-20 mb-3" />
-                <p className="text-sm">{mobileTab === "deposit" ? "Belum ada riwayat setoran" : "Belum ada riwayat penukaran reward"}</p>
+                <Icon name="receipt_long" style={{ fontSize: 48 }} className="opacity-20 mb-3" />
+                <p className="text-sm">Belum ada riwayat transaksi</p>
               </div>
             )}
             {mobileTxs.map((t) => (
@@ -168,6 +177,11 @@ export default function HistoryPage() {
                 <Icon name="chevron_right" className="text-on-surface-variant shrink-0" />
               </button>
             ))}
+            {hasMore && (
+              <div ref={sentinelRef} className="flex justify-center py-4">
+                <Icon name="more_horiz" className="text-on-surface-variant animate-pulse" style={{ fontSize: 24 }} />
+              </div>
+            )}
           </div>
         )}
 

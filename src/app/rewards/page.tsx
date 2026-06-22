@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/ui/Icon";
@@ -85,6 +86,24 @@ export default function RewardsPage() {
   return (
     <AppShell>
       {toast && <Toast {...toast} />}
+
+      {/* Mobile tab bar — mirrors history page tab bar */}
+      <div className="md:hidden flex border-b border-outline-variant">
+        <Link
+          href="/history"
+          className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold border-b-2 -mb-px border-transparent text-on-surface-variant hover:text-on-surface transition-colors"
+        >
+          <Icon name="receipt_long" className="text-[18px]" />
+          Riwayat
+        </Link>
+        <button
+          className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold border-b-2 -mb-px border-primary text-primary"
+        >
+          <Icon name="redeem" fill className="text-[18px]" />
+          Reward Redeem
+        </button>
+      </div>
+
       <div className="max-w-[1280px] mx-auto px-container-padding-mobile md:px-container-padding-desktop py-stack-lg">
         {/* Hero */}
         <section className="mb-stack-lg flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
