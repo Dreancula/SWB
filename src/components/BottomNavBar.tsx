@@ -11,7 +11,7 @@ const LEFT_ITEMS = [
 ];
 
 const RIGHT_ITEMS = [
-  { href: "/history", key: "nav.history", icon: "receipt_long" },
+  { href: "/history", key: "nav.transactions", icon: "receipt_long" },
   { href: "/settings", key: "nav.settings", icon: "settings" },
 ];
 

@@ -29,33 +29,41 @@ export default function HistoryPage() {
   ];
 
   const [filter, setFilter] = useState<"all" | "deposit" | "redeem">("all");
+  const [mobileTab, setMobileTab] = useState<"deposit" | "redeem">("deposit");
   const [searchQuery, setSearchQuery] = useState("");
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [totalPoint, setTotalPoint] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Always load all — filter client-side (mobile tabs + desktop chips)
   useEffect(() => {
     setLoading(true);
-    getTransactions(filter)
+    getTransactions("all")
       .then(({ transactions, totalPoint: tp }) => {
         setTxs(transactions);
-        if (filter === "all") setTotalPoint(tp);
+        setTotalPoint(tp);
         setLoading(false);
       })
       .catch((e) => {
         showToast(e instanceof Error ? e.message : "Gagal memuat riwayat", "error");
         setLoading(false);
       });
-  }, [filter, showToast]);
+  }, [showToast]);
 
-  const filteredTxs = txs.filter((t) => {
+  function matchSearch(tx: Transaction) {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
-    return (
-      t.id.toString().toLowerCase().includes(q) ||
-      t.category.toLowerCase().includes(q)
-    );
+    return tx.id.toString().toLowerCase().includes(q) || tx.category.toLowerCase().includes(q);
+  }
+
+  // Desktop: driven by filter chips
+  const filteredTxs = txs.filter((tx) => {
+    if (filter !== "all" && tx.type !== filter) return false;
+    return matchSearch(tx);
   });
+
+  // Mobile: driven by mobileTab
+  const mobileTxs = txs.filter((tx) => tx.type === mobileTab && matchSearch(tx));
 
   return (
     <AppShell>
@@ -84,8 +92,8 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* Filter chips */}
-        <div className="flex gap-stack-sm mb-stack-md flex-wrap">
+        {/* Filter chips — desktop only */}
+        <div className="hidden md:flex gap-stack-sm mb-stack-md flex-wrap">
           {FILTERS.map((f) => (
             <button
               key={f.key}
@@ -101,10 +109,39 @@ export default function HistoryPage() {
           ))}
         </div>
 
+        {/* Mobile tabs */}
+        <div className="md:hidden flex mb-4 border-b border-outline-variant">
+          {(["deposit", "redeem"] as const).map((tab) => {
+            const label = tab === "deposit" ? "Riwayat Setor" : "Reward Redeem";
+            const icon = tab === "deposit" ? "recycling" : "redeem";
+            const active = mobileTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setMobileTab(tab)}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-colors border-b-2 -mb-px ${
+                  active
+                    ? "border-primary text-primary"
+                    : "border-transparent text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                <Icon name={icon} fill={active} className="text-[18px]" />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Mobile card list */}
-        {!loading && filteredTxs.length > 0 && (
+        {!loading && (
           <div className="md:hidden space-y-3 mb-4">
-            {filteredTxs.map((t) => (
+            {mobileTxs.length === 0 && (
+              <div className="text-center py-12 text-on-surface-variant">
+                <Icon name={mobileTab === "deposit" ? "recycling" : "redeem"} style={{ fontSize: 48 }} className="opacity-20 mb-3" />
+                <p className="text-sm">{mobileTab === "deposit" ? "Belum ada riwayat setoran" : "Belum ada riwayat penukaran reward"}</p>
+              </div>
+            )}
+            {mobileTxs.map((t) => (
               <button
                 key={t.id}
                 onClick={() => navigateToDetail(router, t)}
